@@ -25,7 +25,7 @@ export async function POST(request: Request) {
         // If the admin provided a username that IS an email, we'll just use it.
         // Otherwise, construct a mock email from the username.
         const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username);
-        const authEmail = isEmail ? username.toLowerCase() : `${username.replace(/\s+/g, '').toLowerCase()}@lawfirm.local`;
+        const authEmail = isEmail ? username.toLowerCase() : `${username.replace(/\s+/g, '').toLowerCase()}@firm.com`;
 
         // 1. Create the Auth User
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
