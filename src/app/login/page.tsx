@@ -20,7 +20,7 @@ export default function LoginPage() {
         try {
             // Determine login email based on username input
             const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
-            const loginEmail = isEmail ? identifier.toLowerCase() : `${identifier.replace(/\s+/g, '').toLowerCase()}@lawfirm.local`;
+            const loginEmail = isEmail ? identifier.toLowerCase() : `${identifier.replace(/\s+/g, '').toLowerCase()}@firm.com`;
 
             // Handle genuine login
             const { data, error } = await supabase.auth.signInWithPassword({
@@ -82,7 +82,7 @@ export default function LoginPage() {
                             value={identifier}
                             onChange={(e) => setIdentifier(e.target.value)}
                             className="input-glass"
-                            placeholder="e.g. kavya or kavya@firm.com"
+                            placeholder="e.g. AdamLex or AdamLex@firm.com"
                             required
                         />
                     </div>
