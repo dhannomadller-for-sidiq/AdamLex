@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { email, password, full_name, phone_number, enrollment_no, designation, username } = body;
+        const { email, password, full_name, phone_number, location, specialization, username } = body;
 
         // Ensure required fields
         if (!email || !password || !full_name) {
@@ -21,9 +21,6 @@ export async function POST(request: Request) {
 
         const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-        // We use the email field for Supabase Auth as the primary identifier.
-        // If the admin provided a username that IS an email, we'll just use it.
-        // Otherwise, construct a mock email from the username.
         const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username);
         const authEmail = isEmail ? username.toLowerCase() : `${username.replace(/\s+/g, '').toLowerCase()}@firm.com`;
 
@@ -31,7 +28,7 @@ export async function POST(request: Request) {
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
             email: authEmail,
             password,
-            email_confirm: true, // Auto-confirm to skip verification step
+            email_confirm: true,
             user_metadata: { full_name }
         });
 
@@ -44,7 +41,7 @@ export async function POST(request: Request) {
         // 2. Insert into Profiles table
         const { error: profileError } = await supabaseAdmin.from('profiles').insert([{
             id: newUserId,
-            role: 'lawyer',
+            role: 'associate',
             full_name,
             phone_number,
             username
@@ -55,21 +52,20 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: profileError.message }, { status: 400 });
         }
 
-        // 3. Insert into Lawyers table
-        const { error: lawyerError } = await supabaseAdmin.from('lawyers').insert([{
+        // 3. Insert into Associates table
+        const { error: associateError } = await supabaseAdmin.from('associates').insert([{
             id: newUserId,
-            enrollment_no,
-            designation
+            location,
+            specialization
         }]);
 
-        if (lawyerError) {
-            // Optional: delete profile too if lawyer entry fails
+        if (associateError) {
             await supabaseAdmin.from('profiles').delete().eq('id', newUserId);
             await supabaseAdmin.auth.admin.deleteUser(newUserId);
-            return NextResponse.json({ error: lawyerError.message }, { status: 400 });
+            return NextResponse.json({ error: associateError.message }, { status: 400 });
         }
 
-        return NextResponse.json({ success: true, message: 'Lawyer created successfully', user_id: newUserId });
+        return NextResponse.json({ success: true, message: 'Associate created successfully', user_id: newUserId });
 
     } catch (error: any) {
         return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });

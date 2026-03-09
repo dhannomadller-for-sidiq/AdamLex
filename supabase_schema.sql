@@ -6,11 +6,26 @@
 -- 2. Create the Profiles table (extends Supabase auth.users)
 CREATE TABLE public.profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  role TEXT CHECK (role IN ('admin', 'lawyer')) DEFAULT 'lawyer',
+  role TEXT CHECK (role IN ('admin', 'lawyer', 'associate')) DEFAULT 'lawyer',
   full_name TEXT NOT NULL,
+  username TEXT,
   phone_number TEXT,
   total_leads_managing INT DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE public.lawyers (
+  id UUID REFERENCES public.profiles(id) ON DELETE CASCADE PRIMARY KEY,
+  enrollment_no TEXT,
+  designation TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE TABLE public.associates (
+  id UUID REFERENCES public.profiles(id) ON DELETE CASCADE PRIMARY KEY,
+  location TEXT,
+  specialization TEXT,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
 -- 3. Create the Leads table
@@ -24,6 +39,11 @@ CREATE TABLE public.leads (
   case_summary TEXT,
   next_followup_date TIMESTAMP WITH TIME ZONE,
   is_confirmed BOOLEAN DEFAULT FALSE,
+  associate_id UUID REFERENCES public.profiles(id) DEFAULT NULL,
+  associate_payment NUMERIC DEFAULT 0,
+  associate_advance_payment NUMERIC DEFAULT 0,
+  associate_payment_id TEXT,
+  associate_remarks TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -59,11 +79,27 @@ CREATE POLICY "Admins can view all leads" ON public.leads FOR SELECT
 CREATE POLICY "Lawyers can view their assigned leads" ON public.leads FOR SELECT 
   USING (assigned_to = auth.uid());
 
-CREATE POLICY "Admins can manage all leads" ON public.leads FOR ALL 
+CREATE POLICY "Admins can insert leads" ON public.leads FOR INSERT 
+  WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin'));
+
+CREATE POLICY "Lawyers can insert leads" ON public.leads FOR INSERT 
+  WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Admins can update all leads" ON public.leads FOR UPDATE 
   USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin'));
 
 CREATE POLICY "Lawyers can update their assigned leads" ON public.leads FOR UPDATE 
   USING (assigned_to = auth.uid());
+
+CREATE POLICY "Admins can delete leads" ON public.leads FOR DELETE 
+  USING (EXISTS (SELECT 1 FROM public.profiles WHERE profiles.id = auth.uid() AND profiles.role = 'admin'));
+
+-- Associates can view their assigned leads
+CREATE POLICY "Associates can view their assigned leads" ON public.leads FOR SELECT 
+  USING (associate_id = auth.uid());
+
+CREATE POLICY "Associates can update their assigned leads" ON public.leads FOR UPDATE 
+  USING (associate_id = auth.uid());
 
 -- Payments Policies
 -- Only Admin can view/edit all payments. Lawyers can create a payment when confirming a lead.

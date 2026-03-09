@@ -31,16 +31,28 @@ export default function LoginPage() {
             if (error) throw error;
 
             // Check role in profiles
-            const { data: profileData } = await supabase
+            const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('role')
                 .eq('id', data.user.id)
                 .single();
 
-            const userRole = profileData?.role || 'lawyer';
+            if (profileError || !profileData) {
+                // If profile is missing (due to database clearing), show error
+                setLoading(false);
+                setMessage({
+                    text: 'User profile not found. If you recently cleared the database, please restore your admin profile using the provided SQL.',
+                    type: 'error'
+                });
+                return;
+            }
+
+            const userRole = profileData.role;
 
             if (userRole === 'admin') {
                 router.push('/admin');
+            } else if (userRole === 'associate') {
+                router.push('/associate');
             } else {
                 router.push('/lawyer');
             }

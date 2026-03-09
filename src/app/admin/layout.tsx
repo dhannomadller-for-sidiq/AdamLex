@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, BarChart3, Settings, LogOut, Briefcase, FileText, Menu, X } from 'lucide-react';
+import { Users, BarChart3, Settings, LogOut, Briefcase, FileText, Menu, X, Gavel, Clock, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -22,11 +22,25 @@ export default function AdminLayout({
 
     useEffect(() => {
         async function loadAdmin() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-                if (data) Object.assign(user, data); // merge profile into user object
-                setAdminProfile(data || user);
+            try {
+                const { data: { user }, error: authError } = await supabase.auth.getUser();
+                if (authError) {
+                    console.error('Auth error:', authError);
+                    return;
+                }
+
+                if (user) {
+                    const { data, error: profileError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+                    if (profileError) {
+                        console.error('Profile fetch error:', profileError);
+                    }
+                    if (data) Object.assign(user, data); // merge profile into user object
+                    setAdminProfile(data || user);
+                } else {
+                    console.warn('No user session found in AdminLayout');
+                }
+            } catch (err) {
+                console.error('Unexpected error in loadAdmin:', err);
             }
         }
         loadAdmin();
@@ -74,8 +88,11 @@ export default function AdminLayout({
                 <nav className="flex-1 overflow-y-auto p-4 space-y-2">
                     <NavItem href="/admin" icon={<BarChart3 size={20} />} label="Dashboard Overview" />
                     <NavItem href="/admin/leads" icon={<FileText size={20} />} label="All Leads" />
-                    <NavItem href="/admin/confirmed" icon={<Briefcase size={20} />} label="Confirmed Cases" />
+                    <NavItem href="/admin/confirmed" icon={<Clock size={20} />} label="Approval Pending" />
+                    <NavItem href="/admin/workspace" icon={<Briefcase size={20} />} label="Active Workspace" />
+                    <NavItem href="/admin/payments" icon={<CreditCard size={20} />} label="Payments" />
                     <NavItem href="/admin/lawyers" icon={<Users size={20} />} label="Lawyer Roster" />
+                    <NavItem href="/admin/associates" icon={<Users size={20} />} label="Associate Roster" />
                 </nav>
 
                 <div className="p-4 border-t border-[var(--border-color)]">

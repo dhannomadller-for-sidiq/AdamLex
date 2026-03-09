@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, Scale, CalendarDays, ListTodo } from 'lucide-react';
+import { LogOut, Scale, CalendarDays, ListTodo, Gavel } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -52,6 +52,10 @@ export default function LawyerLayout({
                         <Link href="/lawyer?tab=FollowUp" className="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--accent-gold)] transition-colors">
                             <CalendarDays size={18} />
                             <span className="font-medium text-sm hidden md:inline">Follow-up Schedule</span>
+                        </Link>
+                        <Link href="/lawyer?tab=Workspace" className="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[#a78bfa] transition-colors">
+                            <Gavel size={18} />
+                            <span className="font-medium text-sm hidden md:inline">Court Workspace</span>
                         </Link>
 
                         <div className="h-6 w-px bg-[var(--border-color)] mx-2"></div>

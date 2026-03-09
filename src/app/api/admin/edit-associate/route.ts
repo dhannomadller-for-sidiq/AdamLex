@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { id, password, full_name, phone_number, enrollment_no, designation, username } = body;
+        const { id, password, full_name, phone_number, location, specialization, username } = body;
 
         if (!id || !full_name) {
             return NextResponse.json({ error: 'Missing required fundamental fields' }, { status: 400 });
@@ -30,16 +30,16 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: profileError.message }, { status: 400 });
         }
 
-        // 2. Update Lawyer Information (Upsert to be safe)
-        const { error: lawyerError } = await supabaseAdmin.from('lawyers').upsert({
+        // 2. Update Associate Information (Upsert to be safe)
+        const { error: associateError } = await supabaseAdmin.from('associates').upsert({
             id,
-            enrollment_no,
-            designation,
+            location,
+            specialization,
             updated_at: new Date().toISOString()
         });
 
-        if (lawyerError) {
-            return NextResponse.json({ error: lawyerError.message }, { status: 400 });
+        if (associateError) {
+            return NextResponse.json({ error: associateError.message }, { status: 400 });
         }
 
         // 2. Optional: Reset password if provided
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
             });
         }
 
-        return NextResponse.json({ success: true, message: 'Lawyer updated successfully' });
+        return NextResponse.json({ success: true, message: 'Associate updated successfully' });
 
     } catch (error: any) {
         return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
