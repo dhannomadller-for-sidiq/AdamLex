@@ -18,14 +18,19 @@ export default function LoginPage() {
         setMessage(null);
 
         try {
+            const cleanIdentifier = identifier.trim();
+            const cleanPassword = password.trim();
+
             // Determine login email based on username input
-            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
-            const loginEmail = isEmail ? identifier.toLowerCase() : `${identifier.replace(/\s+/g, '').toLowerCase()}@firm.com`;
+            const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanIdentifier);
+            const loginEmail = isEmail
+                ? cleanIdentifier.toLowerCase()
+                : `${cleanIdentifier.replace(/\s+/g, '').toLowerCase()}@firm.com`;
 
             // Handle genuine login
             const { data, error } = await supabase.auth.signInWithPassword({
                 email: loginEmail,
-                password,
+                password: cleanPassword,
             });
 
             if (error) throw error;

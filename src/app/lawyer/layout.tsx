@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import GlobalSearch from '@/components/GlobalSearch';
 
 export default function LawyerLayout({
     children,
@@ -24,16 +25,16 @@ export default function LawyerLayout({
                     return;
                 }
 
-                const { data, error: profileError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-                if (profileError || !data || data.role !== 'lawyer') {
+                const { data, error: profileError } = await supabase.from('profiles').select('*, lawyers(designation)').eq('id', user.id).single();
+                if (profileError || !data || (data.role !== 'lawyer' && data.role !== 'admin')) {
                     router.push('/login');
                     return;
                 }
                 setUserProfile(data);
-                setIsLoading(false); // Only set loading to false if we successfully verified
+                setIsLoading(false);
             } catch (err) {
-                console.error('Lawyer auth error:', err);
-                router.push('/lawyer');
+                console.error('Error loading user:', err);
+                router.push('/login');
             }
         }
         loadUser();
@@ -57,11 +58,11 @@ export default function LawyerLayout({
     }
 
     return (
-        <div className="flex flex-col min-h-screen bg-[var(--bg-main)]">
+        <div className="min-h-screen bg-[var(--bg-main)]">
             {/* Top Navbar */}
             <nav className="glass-panel sticky top-0 z-50 px-6 py-4 pt-[max(1rem,env(safe-area-inset-top))] border-b border-[var(--border-color)] bg-[#090c15]/90 backdrop-blur-xl">
-                <div className="max-w-7xl mx-auto flex items-center justify-between">
-                    <Link href="/lawyer">
+                <div className="max-w-7xl mx-auto flex items-center justify-between gap-8">
+                    <Link href="/lawyer" className="shrink-0">
                         <h1 className="text-2xl font-bold tracking-tight">
                             <span className="gold-gradient-text flex items-center gap-2">
                                 <Scale size={24} />
@@ -69,6 +70,10 @@ export default function LawyerLayout({
                             </span>
                         </h1>
                     </Link>
+
+                    <div className="hidden md:flex flex-1 max-w-md">
+                        <GlobalSearch />
+                    </div>
 
                     <div className="flex items-center gap-6">
                         <Link href="/lawyer?tab=Assigned" className="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--accent-gold)] transition-colors">

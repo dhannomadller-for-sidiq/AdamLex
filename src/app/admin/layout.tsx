@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import GlobalSearch from '@/components/GlobalSearch';
 
 export default function AdminLayout({
     children,
@@ -128,16 +129,33 @@ export default function AdminLayout({
 
             {/* Main Content */}
             <main className="flex-1 overflow-y-auto relative z-0 flex flex-col h-full w-full">
-                {/* Mobile Header Toolbar */}
-                <div className="md:hidden glass-panel border-b border-[var(--border-color)] p-4 pt-[max(1rem,env(safe-area-inset-top))] flex items-center sticky top-0 z-30 bg-[#090c15]/90 backdrop-blur-xl">
-                    <button
-                        onClick={() => setIsMobileMenuOpen(true)}
-                        className="p-2 text-[var(--accent-gold)] bg-[rgba(212,175,55,0.1)] rounded-lg border border-[rgba(212,175,55,0.2)]"
-                    >
-                        <Menu size={24} />
-                    </button>
-                    <span className="ml-4 font-bold text-lg gold-gradient-text tracking-wide">JurisAdmin</span>
-                </div>
+                {/* Global Search Header (Desktop & Mobile) */}
+                <header className="sticky top-0 z-40 glass-panel border-b border-[var(--border-color)] bg-[#090c15]/80 backdrop-blur-xl px-4 py-3 sm:px-8">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={() => setIsMobileMenuOpen(true)}
+                                className="md:hidden p-2 text-[var(--accent-gold)] bg-[rgba(212,175,55,0.1)] rounded-lg border border-[rgba(212,175,55,0.2)]"
+                            >
+                                <Menu size={24} />
+                            </button>
+                            <div className="hidden sm:block">
+                                <span className="font-bold text-lg gold-gradient-text tracking-wide md:hidden">JurisAdmin</span>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 max-w-xl mx-auto md:mx-0">
+                            <GlobalSearch />
+                        </div>
+
+                        <div className="hidden md:flex items-center gap-4">
+                            <div className="text-right">
+                                <p className="text-[10px] font-bold text-[var(--accent-gold)] uppercase tracking-widest leading-none mb-1">Live Mode</p>
+                                <p className="text-xs text-[var(--text-secondary)] leading-none">System Stable</p>
+                            </div>
+                        </div>
+                    </div>
+                </header>
 
                 <div className="p-4 sm:p-8 flex-1">
                     {children}

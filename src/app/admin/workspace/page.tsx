@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
     Gavel,
     CreditCard,
@@ -23,9 +24,17 @@ import ModalPortal from '@/components/ModalPortal';
 import CaseProgressView from '@/components/CaseProgressView';
 
 export default function WorkspacePage() {
+    const searchParams = useSearchParams();
+    const searchId = searchParams.get('searchId');
     const [leads, setLeads] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (searchId) {
+            setExpandedRow(searchId);
+        }
+    }, [searchId]);
     const [currentUser, setCurrentUser] = useState<{ id: string; name: string } | null>(null);
     const [chatLead, setChatLead] = useState<any | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);

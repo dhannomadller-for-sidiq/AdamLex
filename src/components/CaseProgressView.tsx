@@ -6,6 +6,7 @@ import {
     Gavel, Plus, Check, Calendar, FileText, Clock, AlertCircle, CheckCircle2,
     Bell, Loader2, RefreshCcw, Info
 } from 'lucide-react';
+import VoiceNoteRecorder from './VoiceNoteRecorder';
 
 const COURT_STAGES = [
     'Vakalatnama Filed',
@@ -47,9 +48,10 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
     const [showStageForm, setShowStageForm] = useState(false);
     const [showCaseForm, setShowCaseForm] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
 
     const [hearingForm, setHearingForm] = useState({
-        hearing_date: '', what_happened: '', result: 'Adjourned', next_hearing_date: '', next_hearing_notes: ''
+        hearing_date: '', what_happened: '', result: 'Adjourned', next_hearing_date: '', next_hearing_notes: '', voice_note_url: ''
     });
     const [stageForm, setStageForm] = useState({
         stage_number: 1, status: 'Done', notes: '', stage_date: ''
@@ -157,11 +159,14 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
                 next_hearing_date: hearingForm.next_hearing_date || null,
                 next_hearing_notes: hearingForm.next_hearing_notes,
                 recorded_by: userId,
+                voice_note_url: hearingForm.voice_note_url || null,
             }]).select().single();
             if (error) throw error;
             setHearings(prev => [data, ...prev]);
             setShowHearingForm(false);
-            setHearingForm({ hearing_date: '', what_happened: '', result: 'Adjourned', next_hearing_date: '', next_hearing_notes: '' });
+            setHearingForm({
+                hearing_date: '', what_happened: '', result: 'Adjourned', next_hearing_date: '', next_hearing_notes: '', voice_note_url: ''
+            });
         } catch (e: any) {
             alert('Failed to add hearing: ' + e.message);
         } finally { setSubmitting(false); }
@@ -423,10 +428,32 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
                                         <label className="block text-[9px] font-bold text-[var(--accent-gold)] uppercase mb-1">Purpose</label>
                                         <input className="input-glass w-full py-2.5 text-xs" placeholder="Notes..." value={hearingForm.next_hearing_notes} onChange={e => setHearingForm(f => ({ ...f, next_hearing_notes: e.target.value }))} />
                                     </div>
+                                    <div className="col-span-2">
+                                        <VoiceNoteRecorder
+                                            onUploadComplete={(url) => setHearingForm(f => ({ ...f, voice_note_url: url }))}
+                                            onReset={() => setHearingForm(f => ({ ...f, voice_note_url: '' }))}
+                                            onUploading={(status) => setIsUploading(status)}
+                                        />
+                                    </div>
                                 </div>
-                                <button onClick={handleAddHearing} disabled={submitting || !hearingForm.hearing_date} className="w-full py-2 bg-[var(--accent-gold)] text-black font-bold rounded-lg text-xs flex items-center justify-center gap-2">
-                                    {submitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Save Hearing
-                                </button>
+                                <div className="space-y-2">
+                                    {!hearingForm.hearing_date && (
+                                        <p className="text-[10px] text-[var(--danger-red)] font-bold flex items-center gap-1">
+                                            <AlertCircle size={10} /> Please select a hearing date to save
+                                        </p>
+                                    )}
+                                    <button
+                                        onClick={handleAddHearing}
+                                        disabled={submitting || isUploading || !hearingForm.hearing_date}
+                                        className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${(submitting || isUploading || !hearingForm.hearing_date)
+                                            ? 'bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border border-[var(--border-color)] cursor-not-allowed'
+                                            : 'bg-[var(--accent-gold)] text-black shadow-lg shadow-[#d4af37]/20 hover:scale-[1.01] active:scale-[0.99]'
+                                            }`}
+                                    >
+                                        {submitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                        {isUploading ? 'Preparing Attachment...' : 'Save Hearing Log'}
+                                    </button>
+                                </div>
                             </div>
                         )}
 
@@ -450,6 +477,11 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
                                                 </span>
                                             </div>
                                             {h.what_happened && <p className="text-xs text-[var(--text-secondary)] italic">"{h.what_happened}"</p>}
+                                            {h.voice_note_url && (
+                                                <div className="mt-2">
+                                                    <audio src={h.voice_note_url} controls className="h-8 w-full max-w-[200px]" />
+                                                </div>
+                                            )}
                                             {h.next_hearing_date && (
                                                 <div className={`flex items-center gap-2 p-2 rounded-lg border text-[10px] font-bold ${urgencyStyle(nextU)}`}>
                                                     <Calendar size={12} />

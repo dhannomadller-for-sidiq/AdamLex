@@ -11,6 +11,7 @@ import CourtWorkspace from '@/components/CourtWorkspace';
 function LawyerDashboardContent() {
     const searchParams = useSearchParams();
     const tabParam = searchParams.get('tab');
+    const searchId = searchParams.get('searchId');
 
     const [activeModal, setActiveModal] = useState<number | null>(null);
     const [isMalayalam, setIsMalayalam] = useState(false);
@@ -38,6 +39,18 @@ function LawyerDashboardContent() {
             setActiveTab(tabParam as any);
         }
     }, [tabParam]);
+
+    useEffect(() => {
+        if (leads.length > 0 && searchId) {
+            const index = leads.findIndex(l => l.id === searchId);
+            if (index !== -1) {
+                setViewingLeadIndex(index);
+                // Also ensure we are on the Workspace tab if it's a confirmed lead or similar
+                // But generally, let's just make it visible
+                setActiveTab('Workspace');
+            }
+        }
+    }, [leads, searchId]);
 
     useEffect(() => {
         async function fetchMyLeads() {
