@@ -2,7 +2,7 @@
 
 import { Users, BarChart3, Settings, LogOut, Briefcase, FileText, Menu, X, Gavel, Clock, CreditCard } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
@@ -13,6 +13,8 @@ export default function AdminLayout({
 }) {
     const [adminProfile, setAdminProfile] = useState<any>(null);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const router = useRouter();
 
     // Close menu when route changes on mobile
     const pathname = usePathname();
@@ -24,32 +26,44 @@ export default function AdminLayout({
         async function loadAdmin() {
             try {
                 const { data: { user }, error: authError } = await supabase.auth.getUser();
-                if (authError) {
-                    console.error('Auth error:', authError);
+                if (authError || !user) {
+                    console.error('Auth check failed:', authError);
+                    router.push('/login');
                     return;
                 }
 
-                if (user) {
-                    const { data, error: profileError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-                    if (profileError) {
-                        console.error('Profile fetch error:', profileError);
-                    }
-                    if (data) Object.assign(user, data); // merge profile into user object
-                    setAdminProfile(data || user);
-                } else {
-                    console.warn('No user session found in AdminLayout');
+                const { data, error: profileError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+                if (profileError || !data || data.role !== 'admin') {
+                    console.error('Access denied: User is not an admin or profile missing');
+                    router.push('/login');
+                    return;
                 }
+
+                setAdminProfile(data);
+                setIsLoading(false); // Only set loading to false if we successfully verified
             } catch (err) {
                 console.error('Unexpected error in loadAdmin:', err);
+                router.push('/login');
             }
         }
         loadAdmin();
-    }, []);
+    }, [router]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
         window.location.href = '/login';
     };
+
+    if (isLoading || !adminProfile) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[var(--bg-main)]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-[rgba(212,175,55,0.2)] border-t-[var(--accent-gold)] rounded-full animate-spin"></div>
+                    <p className="text-[var(--accent-gold)] font-medium tracking-widest uppercase text-sm">Verifying Access...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex h-screen overflow-hidden bg-[var(--bg-main)]">
@@ -101,7 +115,7 @@ export default function AdminLayout({
                             {adminProfile?.full_name ? adminProfile.full_name.substring(0, 2).toUpperCase() : 'AD'}
                         </div>
                         <div className="flex-1 overflow-hidden">
-                            <p className="text-sm font-semibold truncate capitalize">{adminProfile ? (adminProfile.full_name || 'Loading...') : 'Loading...'}</p>
+                            <p className="text-sm font-semibold truncate capitalize">{adminProfile?.full_name || adminProfile?.email?.split('@')[0] || 'Juris Admin'}</p>
                             <p className="text-xs text-[var(--text-secondary)] truncate">{adminProfile?.email || 'System Administrator'}</p>
                         </div>
                     </div>

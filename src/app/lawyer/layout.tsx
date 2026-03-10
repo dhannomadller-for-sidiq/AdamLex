@@ -4,6 +4,7 @@ import { LogOut, Scale, CalendarDays, ListTodo, Gavel } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
 export default function LawyerLayout({
     children,
@@ -11,24 +12,49 @@ export default function LawyerLayout({
     children: React.ReactNode;
 }) {
     const [userProfile, setUserProfile] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const router = useRouter();
 
     useEffect(() => {
         async function loadUser() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-                if (data) Object.assign(user, data); // merge profile into user object for convenience
-                setUserProfile(data || user);
+            try {
+                const { data: { user }, error: authError } = await supabase.auth.getUser();
+                if (authError || !user) {
+                    router.push('/login');
+                    return;
+                }
+
+                const { data, error: profileError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+                if (profileError || !data || data.role !== 'lawyer') {
+                    router.push('/login');
+                    return;
+                }
+                setUserProfile(data);
+                setIsLoading(false); // Only set loading to false if we successfully verified
+            } catch (err) {
+                console.error('Lawyer auth error:', err);
+                router.push('/lawyer');
             }
         }
         loadUser();
-    }, []);
+    }, [router]);
 
     // Logout function
     const handleLogout = async () => {
         await supabase.auth.signOut();
         window.location.href = '/login';
     };
+
+    if (isLoading || !userProfile) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[var(--bg-main)]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-[rgba(212,175,55,0.2)] border-t-[var(--accent-gold)] rounded-full animate-spin"></div>
+                    <p className="text-[var(--accent-gold)] font-medium tracking-widest uppercase text-sm">Verifying Access...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col min-h-screen bg-[var(--bg-main)]">
@@ -64,7 +90,7 @@ export default function LawyerLayout({
                         <div className="flex items-center gap-3">
                             <div className="text-right hidden sm:block">
                                 <p className="text-sm font-semibold leading-tight text-[var(--text-primary)]">
-                                    {userProfile ? (userProfile.full_name || 'Loading...') : 'Loading...'}
+                                    {userProfile?.full_name || userProfile?.email?.split('@')[0] || 'Juris Lawyer'}
                                 </p>
                                 <p className="text-xs text-[var(--accent-gold)] leading-tight">
                                     {userProfile?.designation || 'Lawyer'}
