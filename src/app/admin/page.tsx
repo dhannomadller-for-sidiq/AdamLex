@@ -70,13 +70,20 @@ export default function AdminDashboardPage() {
                     <h2 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">Dashboard Overview</h2>
                     <p className="text-[var(--text-secondary)] mt-1">Real-time metrics and lawyer performance.</p>
                 </div>
-                <div className="text-sm font-medium text-[var(--accent-gold)] px-4 py-2 rounded-lg bg-[rgba(212,175,55,0.1)] border border-[rgba(212,175,55,0.2)]">
-                    Live System Active
+                <div className="flex items-center gap-3">
+                    <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-[var(--text-secondary)] px-4 py-2 rounded-lg bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.05)]">
+                        <Database size={14} className="text-[var(--accent-gold)]" />
+                        Storage: <span className="text-[var(--text-primary)]">{stats.dbSize}</span>
+                    </div>
+                    <div className="text-sm flex items-center gap-2 font-medium text-[var(--accent-gold)] px-4 py-2 rounded-lg bg-[rgba(212,175,55,0.1)] border border-[rgba(212,175,55,0.2)]">
+                        <div className="w-2 h-2 rounded-full bg-[var(--accent-gold)] animate-pulse"></div>
+                        Live System Active
+                    </div>
                 </div>
             </header>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                     title="Total Active Leads"
                     value={stats.activeLeads}
@@ -105,13 +112,6 @@ export default function AdminDashboardPage() {
                     trend="All Time"
                     icon={<CheckCircle size={24} />}
                     delay="stagger-4"
-                />
-                <StatCard
-                    title="Database Storage"
-                    value={stats.dbSize}
-                    trend="System Core"
-                    icon={<Database size={24} />}
-                    delay="stagger-5"
                 />
             </div>
 
