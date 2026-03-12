@@ -17,12 +17,13 @@ export default function AdminDashboardPage() {
             const { count: followUpCount } = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('status', 'Follow Up Scheduled');
             const { count: confirmedCount } = await supabase.from('leads').select('*', { count: 'exact', head: true }).eq('status', 'Confirmed');
 
-            setStats({
+            setStats(s => ({
+                ...s,
                 activeLeads: activeCount || 0,
                 pendingFollowups: followUpCount || 0,
                 confirmedCases: confirmedCount || 0,
                 totalLawyers: 0 // Will populate below
-            });
+            }));
 
             // 2. Fetch Lawyers and attach their stats
             const { data: profiles } = await supabase.from('profiles').select('id, full_name, role').eq('role', 'lawyer');
@@ -90,7 +91,7 @@ export default function AdminDashboardPage() {
                     trend="Live Count"
                     icon={<Users size={24} />}
                     delay="stagger-1"
-                    href="/admin/leads"
+                    href="/admin/leads?filter=active"
                 />
                 <StatCard
                     title="Total Lawyers"
@@ -107,7 +108,7 @@ export default function AdminDashboardPage() {
                     icon={<Clock size={24} />}
                     delay="stagger-3"
                     alert={stats.pendingFollowups > 0}
-                    href="/admin/leads"
+                    href="/admin/leads?filter=followup"
                 />
                 <StatCard
                     title="Confirmed Cases"
@@ -115,7 +116,7 @@ export default function AdminDashboardPage() {
                     trend="All Time"
                     icon={<CheckCircle size={24} />}
                     delay="stagger-4"
-                    href="/admin/confirmed"
+                    href="/admin/workspace"
                 />
             </div>
 

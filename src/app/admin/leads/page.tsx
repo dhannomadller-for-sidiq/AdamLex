@@ -17,6 +17,9 @@ export default function AdminLeadsPage() {
     const [lawyersList, setLawyersList] = useState<any[]>([]);
     const [associatesList, setAssociatesList] = useState<any[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [lawyerFilter, setLawyerFilter] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Confirmation Form State
     const [confirmData, setConfirmData] = useState({
@@ -74,8 +77,43 @@ export default function AdminLeadsPage() {
     };
 
     useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const filterStr = urlParams.get('filter');
+        if (filterStr) {
+            setStatusFilter(filterStr);
+        }
         fetchInitialData();
     }, []);
+
+    const filteredLeads = leads.filter(lead => {
+        let match = true;
+
+        if (statusFilter === 'active') {
+            match = match && lead.status !== 'Confirmed';
+        } else if (statusFilter === 'new') {
+            match = match && lead.status === 'New';
+        } else if (statusFilter === 'followup') {
+            match = match && lead.status === 'Follow Up Scheduled';
+        } else if (statusFilter !== 'all') {
+            match = match && lead.status.toLowerCase() === statusFilter.toLowerCase();
+        }
+
+        if (lawyerFilter !== 'all') {
+            match = match && lead.profiles?.id === lawyerFilter;
+        }
+
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            match = match && (
+                lead.client_name?.toLowerCase().includes(query) ||
+                lead.phone_number?.includes(query) ||
+                lead.case_mode?.toLowerCase().includes(query) ||
+                lead.id?.toLowerCase().includes(query)
+            );
+        }
+
+        return match;
+    });
 
     const handleAddLead = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -172,16 +210,27 @@ export default function AdminLeadsPage() {
                             type="text"
                             placeholder="Search by client name, case, or ID..."
                             className="input-glass pl-10 py-2 w-full"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
                         />
                     </div>
 
                     <div className="flex gap-3 w-full md:w-auto">
-                        <select className="input-glass py-2 appearance-none">
+                        <select
+                            className="input-glass py-2 appearance-none"
+                            value={statusFilter}
+                            onChange={e => setStatusFilter(e.target.value)}
+                        >
                             <option value="all">All Statuses</option>
+                            <option value="active">Active (Not Confirmed)</option>
                             <option value="new">New</option>
                             <option value="followup">Needs Follow-up</option>
                         </select>
-                        <select className="input-glass py-2 appearance-none">
+                        <select
+                            className="input-glass py-2 appearance-none"
+                            value={lawyerFilter}
+                            onChange={e => setLawyerFilter(e.target.value)}
+                        >
                             <option value="all">Any Lawyer</option>
                             {lawyersList.map((lawyer) => (
                                 <option key={lawyer.id} value={lawyer.id}>{lawyer.full_name}</option>
@@ -208,10 +257,10 @@ export default function AdminLeadsPage() {
                             <tbody className="divide-y divide-[var(--border-color)]">
                                 {loading ? (
                                     <tr><td colSpan={6} className="p-8 text-center text-[var(--accent-gold)] animate-pulse">Loading leads...</td></tr>
-                                ) : leads.length === 0 ? (
-                                    <tr><td colSpan={6} className="p-8 text-center text-[var(--text-secondary)]">No leads found.</td></tr>
+                                ) : filteredLeads.length === 0 ? (
+                                    <tr><td colSpan={6} className="p-8 text-center text-[var(--text-secondary)]">No leads found matching your filters.</td></tr>
                                 ) : (
-                                    leads.map((lead) => (
+                                    filteredLeads.map((lead) => (
                                         <tr key={lead.id} className="hover:bg-[rgba(255,255,255,0.02)] transition-colors group">
                                             <td className="p-5">
                                                 <p className="font-semibold text-[var(--text-primary)]">{lead.client_name}</p>
