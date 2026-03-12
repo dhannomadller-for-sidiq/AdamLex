@@ -8,18 +8,8 @@ import {
 } from 'lucide-react';
 import VoiceNoteRecorder from './VoiceNoteRecorder';
 
-const COURT_STAGES = [
-    'Vakalatnama Filed',
-    'Case Filed in Court',
-    'CNR / Case Number Allotted',
-    'Notice Issued to Opposite Party',
-    'Written Statement Filed',
-    'Framing of Issues',
-    'Evidence Stage',
-    'Arguments',
-    'Judgment Reserved',
-    'Judgment Pronounced',
-    'Case Closed / Appeal',
+const SUGGESTED_STAGES = [
+    'Notice Issued', 'Written Statement Filed', 'Framing of Issues', 'Evidence Stage', 'Arguments', 'Judgment Reserved'
 ];
 
 const STAGE_COLORS: Record<string, string> = {
@@ -54,7 +44,7 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
         hearing_date: '', what_happened: '', result: 'Adjourned', next_hearing_date: '', next_hearing_notes: '', voice_note_url: ''
     });
     const [stageForm, setStageForm] = useState({
-        stage_number: 1, status: 'Done', notes: '', stage_date: ''
+        id: '', stage_name: '', status: 'Done', notes: '', stage_date: ''
     });
     const [caseForm, setCaseForm] = useState({
         cnr_number: '', court_name: '', case_type: '', filing_date: '', notes: ''
@@ -83,8 +73,8 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
         fetchData();
     }, [fetchData]);
 
-    const getStageStatus = (stageNumber: number) => {
-        return stages.find(s => s.stage_number === stageNumber) || null;
+    const getStageStatus = (id: string) => {
+        return stages.find(s => s.id === id) || null;
     };
 
     const getHearingUrgency = (dateStr: string | null) => {
@@ -176,21 +166,21 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
         if (!courtCase) return;
         setSubmitting(true);
         try {
-            const existing = getStageStatus(stageForm.stage_number);
-            if (existing) {
+            if (stageForm.id) {
                 const { error } = await supabase.from('court_stages').update({
+                    stage_name: stageForm.stage_name,
                     status: stageForm.status,
                     notes: stageForm.notes,
                     stage_date: stageForm.stage_date || null,
                     updated_at: new Date().toISOString(),
-                }).eq('id', existing.id);
+                }).eq('id', stageForm.id);
                 if (error) throw error;
             } else {
                 const { error } = await supabase.from('court_stages').insert([{
                     court_case_id: courtCase.id,
                     lead_id: leadId,
-                    stage_number: stageForm.stage_number,
-                    stage_name: COURT_STAGES[stageForm.stage_number - 1],
+                    stage_number: stages.length + 1,
+                    stage_name: stageForm.stage_name || 'New Milestone',
                     status: stageForm.status,
                     notes: stageForm.notes,
                     stage_date: stageForm.stage_date || null,
@@ -200,6 +190,7 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
             }
             await fetchData();
             setShowStageForm(false);
+            setStageForm({ id: '', stage_name: '', status: 'Done', notes: '', stage_date: '' });
         } catch (e: any) {
             alert('Failed to update stage: ' + e.message);
         } finally { setSubmitting(false); }
@@ -273,30 +264,30 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
 
             {/* Case Form Modal-ish (for editing or manual register) */}
             {showCaseForm && !readOnly && (
-                <div className="p-6 rounded-2xl border border-[rgba(255,255,255,0.1)] bg-[rgba(0,0,0,0.2)] space-y-4 animate-in slide-in-from-top-4 duration-300">
-                    <div className="flex justify-between items-center mb-2">
-                        <h5 className="text-xs font-bold text-[var(--accent-gold)] uppercase tracking-widest">{courtCase ? 'Update Case Details' : 'Register Case Details'}</h5>
-                        <button onClick={() => setShowCaseForm(false)} className="text-[var(--text-secondary)] hover:text-white"><Plus size={16} className="rotate-45" /></button>
-                    </div>
+                <div className="p-6 rounded-2xl border border-[var(--border-color)] bg-[rgba(255,255,255,0.02)] space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1">CNR Number (Stage 3+)</label>
-                            <input className="input-glass w-full py-2 text-sm font-mono" placeholder="KL0101001234..." value={caseForm.cnr_number} onChange={e => setCaseForm(f => ({ ...f, cnr_number: e.target.value }))} />
+                            <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1.5 ml-1">CNR Number</label>
+                            <input className="input-glass w-full" placeholder="Existing CNR..." value={caseForm.cnr_number} onChange={e => setCaseForm(f => ({ ...f, cnr_number: e.target.value }))} />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1">Court Name</label>
-                            <input className="input-glass w-full py-2 text-sm" placeholder="e.g. Ernakulam District Court" value={caseForm.court_name} onChange={e => setCaseForm(f => ({ ...f, court_name: e.target.value }))} />
+                            <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1.5 ml-1">Court Name</label>
+                            <input className="input-glass w-full" placeholder="e.g. District Court..." value={caseForm.court_name} onChange={e => setCaseForm(f => ({ ...f, court_name: e.target.value }))} />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1">Case Type</label>
-                            <input className="input-glass w-full py-2 text-sm" placeholder="Civil / Criminal / Writ" value={caseForm.case_type} onChange={e => setCaseForm(f => ({ ...f, case_type: e.target.value }))} />
+                            <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1.5 ml-1">Case Type</label>
+                            <input className="input-glass w-full" placeholder="e.g. Civil Suit, Criminal..." value={caseForm.case_type} onChange={e => setCaseForm(f => ({ ...f, case_type: e.target.value }))} />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1">Filing Date</label>
-                            <input type="date" className="input-glass w-full py-2 text-sm" value={caseForm.filing_date} onChange={e => setCaseForm(f => ({ ...f, filing_date: e.target.value }))} />
+                            <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1.5 ml-1">Filing Date</label>
+                            <input type="date" className="input-glass w-full" value={caseForm.filing_date} onChange={e => setCaseForm(f => ({ ...f, filing_date: e.target.value }))} />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1.5 ml-1">Opening Notes</label>
+                            <textarea className="input-glass w-full h-20 resize-none" placeholder="Initial case brief..." value={caseForm.notes} onChange={e => setCaseForm(f => ({ ...f, notes: e.target.value }))} />
                         </div>
                     </div>
-                    <div className="flex gap-2 pt-2 border-t border-white/5">
+                    <div className="flex justify-end gap-3 pt-2">
                         <button onClick={courtCase ? handleUpdateCaseDetails : handleRegisterCase} disabled={submitting} className="flex-1 py-2.5 bg-[var(--accent-gold)] text-black font-bold rounded-xl text-xs flex items-center justify-center gap-2">
                             {submitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                             {courtCase ? 'Save Changes' : 'Register Details'}
@@ -330,11 +321,17 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
                             <h5 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-1.5">
-                                <FileText size={12} /> Procedure Stages
+                                <FileText size={12} /> Procedure Stages (Milestones)
                             </h5>
                             {!readOnly && (
-                                <button onClick={() => setShowStageForm(!showStageForm)} className="text-[10px] px-2 py-1 rounded-lg bg-[rgba(139,92,246,0.1)] text-[#a78bfa] border border-[rgba(139,92,246,0.3)] hover:bg-[rgba(139,92,246,0.2)]">
-                                    Update Stage
+                                <button
+                                    onClick={() => {
+                                        setStageForm({ id: '', stage_name: '', status: 'Done', notes: '', stage_date: '' });
+                                        setShowStageForm(!showStageForm);
+                                    }}
+                                    className="text-[10px] px-2 py-1 rounded-lg bg-[rgba(139,92,246,0.1)] text-[#a78bfa] border border-[rgba(139,92,246,0.3)] hover:bg-[rgba(139,92,246,0.2)]"
+                                >
+                                    Add Milestone
                                 </button>
                             )}
                         </div>
@@ -342,11 +339,18 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
                         {showStageForm && !readOnly && (
                             <div className="p-4 rounded-xl border border-[rgba(139,92,246,0.3)] bg-[rgba(139,92,246,0.05)] space-y-3">
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-[9px] font-bold text-[#a78bfa] uppercase mb-1">Stage</label>
-                                        <select className="input-glass w-full py-2.5 text-xs" value={stageForm.stage_number} onChange={e => setStageForm(f => ({ ...f, stage_number: Number(e.target.value) }))}>
-                                            {COURT_STAGES.map((s, i) => <option key={i} value={i + 1}>{i + 1}. {s}</option>)}
-                                        </select>
+                                    <div className="col-span-2">
+                                        <label className="block text-[9px] font-bold text-[#a78bfa] uppercase mb-1">Milestone Name</label>
+                                        <input
+                                            className="input-glass w-full py-2.5 text-xs"
+                                            placeholder="e.g. Notice Issued, Commission Report..."
+                                            value={stageForm.stage_name}
+                                            onChange={e => setStageForm(f => ({ ...f, stage_name: e.target.value }))}
+                                            list="suggested-stages"
+                                        />
+                                        <datalist id="suggested-stages">
+                                            {SUGGESTED_STAGES.map(s => <option key={s}>{s}</option>)}
+                                        </datalist>
                                     </div>
                                     <div>
                                         <label className="block text-[9px] font-bold text-[#a78bfa] uppercase mb-1">Status</label>
@@ -358,35 +362,62 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
                                         <label className="block text-[9px] font-bold text-[#a78bfa] uppercase mb-1">Date</label>
                                         <input type="date" className="input-glass w-full py-2.5 text-xs" value={stageForm.stage_date} onChange={e => setStageForm(f => ({ ...f, stage_date: e.target.value }))} />
                                     </div>
-                                    <div>
+                                    <div className="col-span-2">
                                         <label className="block text-[9px] font-bold text-[#a78bfa] uppercase mb-1">Notes</label>
                                         <input className="input-glass w-full py-2.5 text-xs" placeholder="Notes..." value={stageForm.notes} onChange={e => setStageForm(f => ({ ...f, notes: e.target.value }))} />
                                     </div>
                                 </div>
-                                <button onClick={handleUpdateStage} disabled={submitting} className="w-full py-2 bg-[#8b5cf6] text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2">
-                                    {submitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Save Update
-                                </button>
+                                <div className="flex gap-2">
+                                    <button onClick={handleUpdateStage} disabled={submitting} className="flex-1 py-2 bg-[#8b5cf6] text-white font-bold rounded-lg text-xs flex items-center justify-center gap-2">
+                                        {submitting ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} {stageForm.id ? 'Update Milestone' : 'Add Milestone'}
+                                    </button>
+                                    <button onClick={() => setShowStageForm(false)} className="px-4 py-2 rounded-lg border border-[var(--border-color)] text-xs text-[var(--text-secondary)]">Cancel</button>
+                                </div>
                             </div>
                         )}
 
                         <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
-                            {COURT_STAGES.map((stageName, i) => {
-                                const stageNum = i + 1;
-                                const stageData = getStageStatus(stageNum);
-                                const status = stageData?.status || 'Pending';
-                                return (
-                                    <div key={i} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs transition-colors ${STAGE_COLORS[status]}`}>
-                                        <div className="w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold shrink-0" style={{ borderColor: 'currentColor' }}>
-                                            {status === 'Done' ? <CheckCircle2 size={14} /> : stageNum}
+                            {stages.length === 0 ? (
+                                <div className="text-center py-10 rounded-xl border border-dashed border-[var(--border-color)] text-[var(--text-secondary)]">
+                                    <Clock size={24} className="mx-auto mb-2 opacity-30" />
+                                    <p className="text-xs">No procedure milestones recorded yet.</p>
+                                </div>
+                            ) : (
+                                stages.map((s, i) => {
+                                    const status = s.status || 'Pending';
+                                    return (
+                                        <div key={s.id} className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl border text-xs transition-colors hover:bg-[rgba(255,255,255,0.02)] ${STAGE_COLORS[status]}`}>
+                                            <div className="w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold shrink-0" style={{ borderColor: 'currentColor' }}>
+                                                {status === 'Done' ? <CheckCircle2 size={14} /> : i + 1}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="font-semibold">{s.stage_name}</p>
+                                                    {!readOnly && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setStageForm({
+                                                                    id: s.id,
+                                                                    stage_name: s.stage_name,
+                                                                    status: s.status,
+                                                                    notes: s.notes || '',
+                                                                    stage_date: s.stage_date || ''
+                                                                });
+                                                                setShowStageForm(true);
+                                                            }}
+                                                            className="opacity-0 group-hover:opacity-100 text-[10px] text-[var(--text-secondary)] hover:text-white transition-opacity"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {s.notes && <p className="text-[10px] opacity-70 mt-0.5">{s.notes}</p>}
+                                            </div>
+                                            {s.stage_date && <span className="text-[10px] font-mono opacity-80 whitespace-nowrap">{new Date(s.stage_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>}
                                         </div>
-                                        <div className="flex-1">
-                                            <p className="font-semibold">{stageName}</p>
-                                            {stageData?.notes && <p className="text-[10px] opacity-70 mt-0.5">{stageData.notes}</p>}
-                                        </div>
-                                        {stageData?.stage_date && <span className="text-[10px] font-mono opacity-80 whitespace-nowrap">{new Date(stageData.stage_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span>}
-                                    </div>
-                                );
-                            })}
+                                    );
+                                })
+                            )}
                         </div>
                     </div>
 
@@ -446,8 +477,8 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
                                         onClick={handleAddHearing}
                                         disabled={submitting || isUploading || !hearingForm.hearing_date}
                                         className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${(submitting || isUploading || !hearingForm.hearing_date)
-                                            ? 'bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border border-[var(--border-color)] cursor-not-allowed'
-                                            : 'bg-[var(--accent-gold)] text-black shadow-lg shadow-[#d4af37]/20 hover:scale-[1.01] active:scale-[0.99]'
+                                                ? 'bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border border-[var(--border-color)] cursor-not-allowed'
+                                                : 'bg-[var(--accent-gold)] text-black shadow-lg shadow-[#d4af37]/20 hover:scale-[1.01] active:scale-[0.99]'
                                             }`}
                                     >
                                         {submitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
