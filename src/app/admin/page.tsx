@@ -90,6 +90,7 @@ export default function AdminDashboardPage() {
                     trend="Live Count"
                     icon={<Users size={24} />}
                     delay="stagger-1"
+                    href="/admin/leads"
                 />
                 <StatCard
                     title="Total Lawyers"
@@ -97,6 +98,7 @@ export default function AdminDashboardPage() {
                     trend="Active Roster"
                     icon={<Users size={24} />}
                     delay="stagger-2"
+                    href="/admin/lawyers"
                 />
                 <StatCard
                     title="Pending Follow-ups"
@@ -105,6 +107,7 @@ export default function AdminDashboardPage() {
                     icon={<Clock size={24} />}
                     delay="stagger-3"
                     alert={stats.pendingFollowups > 0}
+                    href="/admin/leads"
                 />
                 <StatCard
                     title="Confirmed Cases"
@@ -112,6 +115,7 @@ export default function AdminDashboardPage() {
                     trend="All Time"
                     icon={<CheckCircle size={24} />}
                     delay="stagger-4"
+                    href="/admin/confirmed"
                 />
             </div>
 
@@ -158,9 +162,9 @@ export default function AdminDashboardPage() {
     );
 }
 
-function StatCard({ title, value, trend, icon, delay, alert = false }: any) {
-    return (
-        <div className={`glass-card p-6 rounded-xl relative overflow-hidden group ${delay}`}>
+function StatCard({ title, value, trend, icon, delay, alert = false, href }: any) {
+    const CardContent = (
+        <div className={`glass-card p-6 rounded-xl relative overflow-hidden group ${delay} h-full ${href ? 'hover:border-[rgba(212,175,55,0.4)] hover:shadow-[0_0_20px_rgba(212,175,55,0.1)] transition-all cursor-pointer' : ''}`}>
             <div className="absolute -right-4 -top-4 text-[var(--bg-surface-elevated)] opacity-30 group-hover:scale-110 transition-transform duration-500 pointer-events-none">
                 <div className="w-24 h-24">{icon}</div>
             </div>
@@ -170,10 +174,15 @@ function StatCard({ title, value, trend, icon, delay, alert = false }: any) {
                     <p className="text-4xl font-bold mb-2 text-glow">{value}</p>
                     <p className={`text-xs font-semibold ${alert ? 'text-[var(--danger-red)]' : 'text-[var(--success-green)]'}`}>{trend}</p>
                 </div>
-                <div className="p-3 bg-[rgba(212,175,55,0.1)] text-[var(--accent-gold)] rounded-lg border border-[rgba(212,175,55,0.2)]">
+                <div className="p-3 bg-[rgba(212,175,55,0.1)] text-[var(--accent-gold)] rounded-lg border border-[rgba(212,175,55,0.2)] group-hover:bg-[rgba(212,175,55,0.2)] transition-colors">
                     {icon}
                 </div>
             </div>
         </div>
     );
+
+    if (href) {
+        return <Link href={href} className="block h-full">{CardContent}</Link>;
+    }
+    return CardContent;
 }
