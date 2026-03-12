@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, Phone, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import { Users, Phone, CheckCircle, Clock, TrendingUp, Database } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
 export default function AdminDashboardPage() {
-    const [stats, setStats] = useState({ activeLeads: 0, pendingFollowups: 0, confirmedCases: 0, totalLawyers: 0 });
+    const [stats, setStats] = useState({ activeLeads: 0, pendingFollowups: 0, confirmedCases: 0, totalLawyers: 0, dbSize: 'Loading...' });
     const [lawyers, setLawyers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -46,6 +46,15 @@ export default function AdminDashboardPage() {
 
                 setLawyers(lawyerStats);
             }
+
+            // 3. Fetch Database Storage Stat
+            fetch('/api/admin/system-stats')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.size) setStats(s => ({ ...s, dbSize: data.size }));
+                })
+                .catch(err => console.error("Failed to fetch DB stats:", err));
+
             setLoading(false);
         }
 
@@ -67,7 +76,7 @@ export default function AdminDashboardPage() {
             </header>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
                 <StatCard
                     title="Total Active Leads"
                     value={stats.activeLeads}
@@ -95,7 +104,14 @@ export default function AdminDashboardPage() {
                     value={stats.confirmedCases}
                     trend="All Time"
                     icon={<CheckCircle size={24} />}
-                    delay="stagger-3"
+                    delay="stagger-4"
+                />
+                <StatCard
+                    title="Database Storage"
+                    value={stats.dbSize}
+                    trend="System Core"
+                    icon={<Database size={24} />}
+                    delay="stagger-5"
                 />
             </div>
 
