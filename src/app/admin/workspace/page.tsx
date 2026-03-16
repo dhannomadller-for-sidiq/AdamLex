@@ -32,6 +32,8 @@ export default function WorkspacePage() {
     const [loading, setLoading] = useState(true);
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
     const [syncName, setSyncName] = useState('');
+    const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+    const [allAdvocates, setAllAdvocates] = useState<any[]>([]);
 
     useEffect(() => {
         if (searchId) {
@@ -87,8 +89,18 @@ export default function WorkspacePage() {
         setLoading(false);
     }
 
+    const fetchAdvocates = async () => {
+        const { data } = await supabase
+            .from('profiles')
+            .select('id, full_name, professional_name, role')
+            .in('role', ['lawyer', 'associate'])
+            .order('full_name');
+        setAllAdvocates(data || []);
+    };
+
     useEffect(() => {
         fetchWorkspace();
+        fetchAdvocates();
         supabase.auth.getUser().then(({ data: { user } }) => {
             if (user) {
                 supabase.from('profiles').select('id, full_name').eq('id', user.id).single()
@@ -208,68 +220,70 @@ export default function WorkspacePage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsManageModalOpen(true)}
+                        className="h-10 px-4 text-xs font-bold rounded-xl bg-[rgba(212,175,55,0.05)] text-[var(--accent-gold)] border border-[rgba(212,175,55,0.2)] hover:bg-[rgba(212,175,55,0.1)] transition-all flex items-center gap-2"
+                    >
+                        <Users size={14} />
+                        Manage Sync Names
+                    </button>
                     <div className="flex items-center gap-2">
                         <input
                             type="text"
-                            placeholder="Lawyer Name (Optional)"
+                            placeholder="Type name to sync..."
                             value={syncName}
                             onChange={(e) => setSyncName(e.target.value)}
                             className="h-10 px-3 text-xs rounded-xl bg-[rgba(255,255,255,0.05)] text-[var(--text-primary)] border border-[var(--border-color)] focus:border-[var(--accent-gold)] outline-none min-w-[150px] transition-all"
                         />
                         <button
                             onClick={async () => {
-                                if (!confirm(`This will fetch court cases ${syncName ? `for "${syncName}"` : 'for all advocates'}. Continue?`)) return;
+                                let nameLiteral = syncName.trim();
+                                if (!nameLiteral) {
+                                    if (!confirm('Sync all enabled lawyers from High Court?')) return;
+                                } else {
+                                    if (!confirm(`Sync court cases for "${nameLiteral}"?`)) return;
+                                }
+
                                 setIsSubmitting(true);
                                 try {
-                                    // 1. Determine sync targets
                                     let namesToSync: string[] = [];
 
-                                    if (syncName.trim()) {
-                                        namesToSync = [syncName.trim()];
+                                    if (nameLiteral) {
+                                        namesToSync = [nameLiteral];
                                     } else {
-                                        const listRes = await fetch('/api/admin/profiles?role=lawyer,associate');
-                                        const profiles = await listRes.json();
-                                        namesToSync = [...new Set(profiles.map((p: any) => p.professional_name || p.full_name).filter(Boolean))] as string[];
+                                        // Default: only sync those with a professional name
+                                        namesToSync = allAdvocates
+                                            .filter(a => a.professional_name)
+                                            .map(a => a.professional_name);
                                     }
 
                                     if (namesToSync.length === 0) {
-                                        alert('No advocates found to sync.');
+                                        alert('No advocates enabled for sync. Add a Professional Name first.');
+                                        setIsSubmitting(false);
                                         return;
                                     }
 
                                     let totalCases = 0;
                                     let totalHearings = 0;
 
-                                    // 2. Sync each advocate individually to avoid Vercel timeouts
                                     for (const name of namesToSync) {
-                                        const controller = new AbortController();
-                                        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-
-                                        try {
-                                            const res = await fetch(`/api/admin/sync-court-cases?name=${encodeURIComponent(name)}`, {
-                                                method: 'POST',
-                                                signal: controller.signal
-                                            });
-                                            clearTimeout(timeoutId);
-
-                                            if (!res.ok) {
-                                                const text = await res.text();
-                                                console.error(`Status ${res.status} for ${name}: ${text.substring(0, 100)}`);
-                                                continue;
-                                            }
-
+                                        const res = await fetch(`/api/admin/sync-court-cases?name=${encodeURIComponent(name)}`, { method: 'POST' });
+                                        if (res.ok) {
                                             const data = await res.json();
                                             totalCases += data.summary?.cases || 0;
                                             totalHearings += data.summary?.hearings || 0;
-                                        } catch (fetchErr: any) {
-                                            clearTimeout(timeoutId);
-                                            console.error(`Fetch error for ${name}:`, fetchErr.name === 'AbortError' ? 'Timeout' : fetchErr.message);
                                         }
                                     }
 
-                                    alert(`Sync completed! ${syncName ? `Found ${totalCases} cases for ${syncName}.` : `Found ${totalCases} cases across all advocates.`} ${totalHearings} matched your leads.`);
-                                    if (totalCases > 0) fetchWorkspace();
-                                    if (syncName) setSyncName(''); // Clear after specific search
+                                    alert(`Sync completed! Found ${totalCases} cases and ${totalHearings} matches.`);
+                                    fetchWorkspace();
+
+                                    // If this was a successful targeted sync for a name NOT in our list, ask to save it
+                                    if (nameLiteral && !allAdvocates.some(a => a.professional_name === nameLiteral)) {
+                                        // Simple logic to find a potential lawyer to attach this to, or just leave it
+                                        // For now, we'll just clear it. A better UI would be a "Save to..." dropdown.
+                                    }
+                                    setSyncName('');
                                 } catch (err: any) {
                                     alert(`Sync Error: ${err.message}`);
                                 } finally {
@@ -280,7 +294,7 @@ export default function WorkspacePage() {
                             className="h-10 px-4 text-xs font-bold rounded-xl bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:text-white hover:bg-[rgba(255,255,255,0.1)] transition-all flex items-center gap-2"
                         >
                             {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} className="text-[var(--accent-gold)]" />}
-                            Sync {syncName ? 'Lawyer' : 'High Court'}
+                            Sync {syncName ? 'Target' : 'Enabled'}
                         </button>
                     </div>
                     <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-[rgba(139,92,246,0.12)] text-[#a78bfa] border border-[rgba(139,92,246,0.3)]">
@@ -594,6 +608,66 @@ export default function WorkspacePage() {
                                     currentUserId={currentUser.id}
                                     currentUserName={currentUser.name}
                                 />
+                            </div>
+                        </div>
+                    </div>
+                </ModalPortal>
+            )}
+            {/* Manage Sync Names Modal */}
+            {isManageModalOpen && (
+                <ModalPortal>
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
+                        <div className="glass-card w-full max-w-2xl rounded-2xl shadow-2xl border border-[var(--border-color)] flex flex-col max-h-[90vh]">
+                            <div className="p-5 border-b border-[var(--border-color)] flex justify-between items-center bg-[rgba(0,0,0,0.3)] shrink-0">
+                                <div>
+                                    <h3 className="text-lg font-bold text-[var(--text-primary)]">Manage Sync Names</h3>
+                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">Configure which advocates are searched on the High Court website.</p>
+                                </div>
+                                <button onClick={() => setIsManageModalOpen(false)} className="p-2 hover:bg-[rgba(255,255,255,0.1)] rounded-full transition-colors">
+                                    <X size={20} className="text-[var(--text-secondary)]" />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                                <div className="space-y-4">
+                                    {allAdvocates.map((adv) => (
+                                        <div key={adv.id} className="p-4 rounded-xl bg-[rgba(255,255,255,0.02)] border border-[var(--border-color)] flex items-center justify-between gap-4">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="font-semibold text-sm text-[var(--text-primary)]">{adv.full_name}</p>
+                                                    <span className="text-[8px] uppercase px-1.5 py-0.5 rounded bg-[rgba(139,92,246,0.1)] text-[#a78bfa] border border-[rgba(139,92,246,0.2)]">{adv.role}</span>
+                                                </div>
+                                                <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{adv.professional_name ? "✓ Sync Enabled" : "✗ Sync Disabled"}</p>
+                                            </div>
+                                            <div className="w-56">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Bar Council Name..."
+                                                    defaultValue={adv.professional_name || ''}
+                                                    onBlur={async (e) => {
+                                                        const newVal = e.target.value.trim();
+                                                        if (newVal === (adv.professional_name || '')) return;
+
+                                                        const endpoint = adv.role === 'lawyer' ? '/api/admin/edit-lawyer' : '/api/admin/edit-associate';
+                                                        try {
+                                                            const res = await fetch(endpoint, {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ id: adv.id, professional_name: newVal })
+                                                            });
+                                                            if (res.ok) fetchAdvocates();
+                                                        } catch (err) {
+                                                            console.error('Failed to update sync name:', err);
+                                                        }
+                                                    }}
+                                                    className="input-glass w-full py-2 px-3 text-xs border-[var(--border-color)] focus:border-[var(--accent-gold)]"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="p-5 border-t border-[var(--border-color)] bg-[rgba(0,0,0,0.3)] flex justify-end">
+                                <button onClick={() => setIsManageModalOpen(false)} className="btn-primary">Done</button>
                             </div>
                         </div>
                     </div>

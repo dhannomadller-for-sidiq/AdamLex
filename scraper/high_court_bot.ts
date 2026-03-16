@@ -28,18 +28,28 @@ async function syncAdvocateCases(targetName?: string) {
 
         if (profileError) throw profileError;
 
-        // Build sync targets: prioritize professional_name, fallback to full_name
+        // Build sync targets: prioritize professional_name
         let syncTargets = (profiles || []).map(p => ({
             id: p.id,
             fullName: p.full_name,
-            searchTerm: p.professional_name // Use professional_name if provided by Admin
-        })).filter(t => t.searchTerm || t.fullName); // Ensure we have something to search for
+            searchTerm: p.professional_name // Managed by Admin
+        }));
 
         if (targetName) {
+            // One-off sync for a specific name provided manually
             syncTargets = syncTargets.filter(t => t.fullName === targetName || t.searchTerm === targetName);
+            // If targetName wasn't in the DB, we can still allow the one-off sync if we want, 
+            // but the current structure expects the profile to exist.
+            if (syncTargets.length === 0) {
+                // Fallback: search for this name literally if no profile found (matching existing behavior)
+                syncTargets = [{ id: '', fullName: targetName, searchTerm: targetName }];
+            }
+        } else {
+            // Bulk sync (Daily/Manual): ONLY sync those with a professional_name set (Opt-in)
+            syncTargets = syncTargets.filter(t => t.searchTerm && t.searchTerm.trim() !== '');
         }
 
-        console.log(`🔍 Found ${syncTargets.length} advocates to sync.`);
+        console.log(`🔍 Found ${syncTargets.length} opt-in advocates to sync.`);
         summary.advocates = syncTargets.length;
 
         const targetDate = new Date();
