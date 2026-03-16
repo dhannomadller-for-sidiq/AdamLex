@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { syncAdvocateCases } from '@/../scraper/high_court_bot';
+import { syncAdvocateCases } from '../../../../../scraper/high_court_bot';
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
