@@ -31,6 +31,7 @@ export default function WorkspacePage() {
     const [leads, setLeads] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
+    const [syncName, setSyncName] = useState('');
 
     useEffect(() => {
         if (searchId) {
@@ -207,65 +208,81 @@ export default function WorkspacePage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={async () => {
-                            if (!confirm('This will fetch the latest cases from High Court. Continue?')) return;
-                            setIsSubmitting(true);
-                            try {
-                                // 1. Get the list of advocates first
-                                const listRes = await fetch('/api/admin/profiles?role=lawyer,associate');
-                                const profiles = await listRes.json();
-                                const names = [...new Set(profiles.map((p: any) => p.full_name).filter(Boolean))] as string[];
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="text"
+                            placeholder="Lawyer Name (Optional)"
+                            value={syncName}
+                            onChange={(e) => setSyncName(e.target.value)}
+                            className="h-10 px-3 text-xs rounded-xl bg-[rgba(255,255,255,0.05)] text-[var(--text-primary)] border border-[var(--border-color)] focus:border-[var(--accent-gold)] outline-none min-w-[150px] transition-all"
+                        />
+                        <button
+                            onClick={async () => {
+                                if (!confirm(`This will fetch court cases ${syncName ? `for "${syncName}"` : 'for all advocates'}. Continue?`)) return;
+                                setIsSubmitting(true);
+                                try {
+                                    // 1. Determine sync targets
+                                    let namesToSync: string[] = [];
 
-                                if (names.length === 0) {
-                                    alert('No advocates found to sync.');
-                                    return;
-                                }
-
-                                let totalCases = 0;
-                                let totalHearings = 0;
-
-                                // 2. Sync each advocate individually to avoid Vercel timeouts
-                                for (const name of names) {
-                                    const controller = new AbortController();
-                                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-
-                                    try {
-                                        const res = await fetch(`/api/admin/sync-court-cases?name=${encodeURIComponent(name)}`, {
-                                            method: 'POST',
-                                            signal: controller.signal
-                                        });
-                                        clearTimeout(timeoutId);
-
-                                        if (!res.ok) {
-                                            const text = await res.text();
-                                            console.error(`Status ${res.status} for ${name}: ${text.substring(0, 100)}`);
-                                            continue;
-                                        }
-
-                                        const data = await res.json();
-                                        totalCases += data.summary?.cases || 0;
-                                        totalHearings += data.summary?.hearings || 0;
-                                    } catch (fetchErr: any) {
-                                        clearTimeout(timeoutId);
-                                        console.error(`Fetch error for ${name}:`, fetchErr.name === 'AbortError' ? 'Timeout' : fetchErr.message);
+                                    if (syncName.trim()) {
+                                        namesToSync = [syncName.trim()];
+                                    } else {
+                                        const listRes = await fetch('/api/admin/profiles?role=lawyer,associate');
+                                        const profiles = await listRes.json();
+                                        namesToSync = [...new Set(profiles.map((p: any) => p.professional_name || p.full_name).filter(Boolean))] as string[];
                                     }
-                                }
 
-                                alert(`Sync completed! Found ${totalCases} cases and ${totalHearings} match your leads.`);
-                                fetchWorkspace();
-                            } catch (err: any) {
-                                alert(`Sync Error: ${err.message}`);
-                            } finally {
-                                setIsSubmitting(false);
-                            }
-                        }}
-                        disabled={isSubmitting}
-                        className="h-10 px-4 text-xs font-bold rounded-xl bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:text-white hover:bg-[rgba(255,255,255,0.1)] transition-all flex items-center gap-2"
-                    >
-                        {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} className="text-[var(--accent-gold)]" />}
-                        Sync High Court
-                    </button>
+                                    if (namesToSync.length === 0) {
+                                        alert('No advocates found to sync.');
+                                        return;
+                                    }
+
+                                    let totalCases = 0;
+                                    let totalHearings = 0;
+
+                                    // 2. Sync each advocate individually to avoid Vercel timeouts
+                                    for (const name of namesToSync) {
+                                        const controller = new AbortController();
+                                        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+                                        try {
+                                            const res = await fetch(`/api/admin/sync-court-cases?name=${encodeURIComponent(name)}`, {
+                                                method: 'POST',
+                                                signal: controller.signal
+                                            });
+                                            clearTimeout(timeoutId);
+
+                                            if (!res.ok) {
+                                                const text = await res.text();
+                                                console.error(`Status ${res.status} for ${name}: ${text.substring(0, 100)}`);
+                                                continue;
+                                            }
+
+                                            const data = await res.json();
+                                            totalCases += data.summary?.cases || 0;
+                                            totalHearings += data.summary?.hearings || 0;
+                                        } catch (fetchErr: any) {
+                                            clearTimeout(timeoutId);
+                                            console.error(`Fetch error for ${name}:`, fetchErr.name === 'AbortError' ? 'Timeout' : fetchErr.message);
+                                        }
+                                    }
+
+                                    alert(`Sync completed! ${syncName ? `Found ${totalCases} cases for ${syncName}.` : `Found ${totalCases} cases across all advocates.`} ${totalHearings} matched your leads.`);
+                                    if (totalCases > 0) fetchWorkspace();
+                                    if (syncName) setSyncName(''); // Clear after specific search
+                                } catch (err: any) {
+                                    alert(`Sync Error: ${err.message}`);
+                                } finally {
+                                    setIsSubmitting(false);
+                                }
+                            }}
+                            disabled={isSubmitting}
+                            className="h-10 px-4 text-xs font-bold rounded-xl bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:text-white hover:bg-[rgba(255,255,255,0.1)] transition-all flex items-center gap-2"
+                        >
+                            {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} className="text-[var(--accent-gold)]" />}
+                            Sync {syncName ? 'Lawyer' : 'High Court'}
+                        </button>
+                    </div>
                     <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-[rgba(139,92,246,0.12)] text-[#a78bfa] border border-[rgba(139,92,246,0.3)]">
                         {filteredLeads.length} {isTomorrowView ? 'Hearings' : 'Active Cases'}
                     </span>
