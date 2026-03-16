@@ -169,8 +169,13 @@ export default function AdminLayout({
 function NavItem({ href, icon, label }: { href: string, icon: React.ReactNode, label: string }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const fullPath = searchParams.size > 0 ? `${pathname}?${searchParams.toString()}` : pathname;
-    const active = fullPath === href || (href !== '/admin' && !href.includes('?') && pathname.startsWith(href));
+    const hasQuery = searchParams.size > 0;
+    const fullPath = hasQuery ? `${pathname}?${searchParams.toString()}` : pathname;
+
+    // Logic: 
+    // 1. Exact match (including query params)
+    // 2. Base path match ONLY if the current URL has no query params
+    const active = fullPath === href || (href !== '/admin' && !href.includes('?') && pathname.startsWith(href) && !hasQuery);
 
     return (
         <Link
