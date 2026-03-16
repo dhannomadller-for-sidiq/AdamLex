@@ -16,6 +16,8 @@ export default function VoiceNoteRecorder({ onUploadComplete, onReset, onUploadi
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [recordingTime, setRecordingTime] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
+    const [isTranscribing, setIsTranscribing] = useState(false);
+    const [transcribedText, setTranscribedText] = useState('');
     const [isPlaying, setIsPlaying] = useState(false);
     const [isAttached, setIsAttached] = useState(false);
 
@@ -67,38 +69,47 @@ export default function VoiceNoteRecorder({ onUploadComplete, onReset, onUploadi
         setAudioUrl(null);
         setRecordingTime(0);
         setIsAttached(false);
+        setTranscribedText('');
         onReset();
     };
 
-    const handleAttach = async () => {
+    const handleTranscribe = async () => {
         if (!audioBlob) return;
-        setIsUploading(true);
+        setIsTranscribing(true);
         if (onUploading) onUploading(true);
+
         try {
-            const fileName = `voice-note-${Date.now()}.webm`;
-            const { data, error } = await supabase.storage
-                .from('voice-notes')
-                .upload(fileName, audioBlob);
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'audio.webm');
 
-            if (error) throw error;
+            const res = await fetch('/api/transcribe', {
+                method: 'POST',
+                body: formData,
+            });
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('voice-notes')
-                .getPublicUrl(fileName);
-
-            onUploadComplete(publicUrl);
-            setIsAttached(true);
-        } catch (err: any) {
-            console.error('Upload error:', err);
-            if (err.message?.includes('Bucket not found') || err.status === 400) {
-                alert('CRITICAL: Supabase Storage bucket "voice-notes" was not found. Please create a bucket named "voice-notes" in your Supabase dashboard and set it to public.');
-            } else {
-                alert('Failed to upload voice note: ' + err.message);
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Failed to transcribe audio');
             }
+
+            const data = await res.json();
+            setTranscribedText(data.text);
+        } catch (err: any) {
+            console.error('Transcription error:', err);
+            alert('Failed to transcribe voice note: ' + err.message);
         } finally {
-            setIsUploading(false);
+            setIsTranscribing(false);
             if (onUploading) onUploading(false);
         }
+    };
+
+    const handleAttachText = () => {
+        if (!transcribedText.trim()) {
+            alert("Please enter some text or record a voice note.");
+            return;
+        }
+        onUploadComplete(transcribedText);
+        setIsAttached(true);
     };
 
     const formatTime = (seconds: number) => {
@@ -130,8 +141,8 @@ export default function VoiceNoteRecorder({ onUploadComplete, onReset, onUploadi
             {isAttached ? (
                 <div className="flex items-center gap-3 py-2 px-3 rounded-xl bg-[rgba(16,185,129,0.05)] border border-[rgba(16,185,129,0.2)] animate-in zoom-in duration-300">
                     <CheckCircle2 size={18} className="text-[var(--success-green)]" />
-                    <span className="text-sm font-medium text-[var(--success-green)]">Audio response attached.</span>
-                    <button onClick={discardRecording} className="ml-auto text-xs text-[var(--text-secondary)] hover:text-[var(--danger-red)] transition-colors underline underline-offset-4">Change</button>
+                    <span className="text-sm font-medium text-[var(--success-green)]">Transcription attached.</span>
+                    <button onClick={discardRecording} className="ml-auto text-xs text-[var(--text-secondary)] hover:text-[var(--danger-red)] transition-colors underline underline-offset-4">Reset</button>
                 </div>
             ) : (
                 <>
@@ -162,7 +173,7 @@ export default function VoiceNoteRecorder({ onUploadComplete, onReset, onUploadi
                         </div>
                     )}
 
-                    {audioBlob && !isUploading && (
+                    {audioBlob && !isTranscribing && !transcribedText && (
                         <div className="space-y-3 animate-in fade-in duration-300">
                             <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[rgba(0,0,0,0.2)] border border-[var(--border-color)]">
                                 <button
@@ -201,18 +212,39 @@ export default function VoiceNoteRecorder({ onUploadComplete, onReset, onUploadi
                                 </button>
                             </div>
                             <button
-                                onClick={handleAttach}
+                                onClick={handleTranscribe}
                                 className="w-full py-2.5 bg-[#d4af37] text-black font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#d4af37]/10"
                             >
-                                <Volume2 size={14} /> Attach Voice Note to Activity
+                                <Loader2 size={14} className="animate-spin hidden" id="transcribe-spinner" /> Convert to Text
                             </button>
                         </div>
                     )}
 
-                    {isUploading && (
+                    {isTranscribing && (
                         <div className="flex flex-col items-center justify-center py-6 gap-3 text-[var(--text-secondary)] glass-panel rounded-xl">
                             <Loader2 size={24} className="animate-spin text-[var(--accent-gold)]" />
-                            <p className="text-xs font-bold uppercase tracking-widest text-[var(--accent-gold)]">Syncing to Cloud...</p>
+                            <p className="text-xs font-bold uppercase tracking-widest text-[var(--accent-gold)]">AI Transcribing Audio...</p>
+                        </div>
+                    )}
+
+                    {transcribedText && (
+                        <div className="space-y-3 animate-in fade-in duration-300">
+                            <div className="flex justify-between items-center px-1">
+                                <label className="text-[10px] uppercase font-bold text-[var(--accent-gold)] tracking-widest">Review & Edit Transcription</label>
+                                <button onClick={discardRecording} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--danger-red)] transition-colors">Discard</button>
+                            </div>
+                            <textarea
+                                className="w-full min-h-[100px] p-3 rounded-xl bg-[rgba(0,0,0,0.2)] border border-[rgba(212,175,55,0.2)] focus:border-[var(--accent-gold)] text-sm text-[var(--text-primary)] resize-y outline-none transition-all"
+                                value={transcribedText}
+                                onChange={(e) => setTranscribedText(e.target.value)}
+                                placeholder="Edit your transcription here..."
+                            />
+                            <button
+                                onClick={handleAttachText}
+                                className="w-full py-2.5 bg-[#d4af37] text-black font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#d4af37]/10 hover:brightness-110 transition-all"
+                            >
+                                <CheckCircle2 size={16} /> Attach Text to Notes
+                            </button>
                         </div>
                     )}
                 </>

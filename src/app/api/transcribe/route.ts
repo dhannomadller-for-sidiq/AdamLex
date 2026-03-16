@@ -20,17 +20,23 @@ export async function POST(req: NextRequest) {
         const buffer = Buffer.from(arrayBuffer);
         const base64Audio = buffer.toString('base64');
 
+        // Gemini API is strict about mime types. It rejects formats like 'audio/webm;codecs=opus'
+        let mimeType = file.type || "audio/webm";
+        if (mimeType.includes(';')) {
+            mimeType = mimeType.split(';')[0];
+        }
+
         // Prepare the payload for Gemini API
         const payload = {
             contents: [
                 {
                     parts: [
                         {
-                            text: "Please transcribe the following audio accurately, maintaining the original language (e.g. English, Hinglish, or Hindi) and punctuation. Do not add any extra text, markdown formatting or commentary, just output the raw transcription text."
+                            text: "Please carefully transcribe the following audio exactly as spoken. Detect the language automatically. If the audio is in Malayalam, output the transcription in Malayalam text (മലയാളം). If it is in English, Hindi, or any other language, output in that language's script. If it is a mix of languages, transcribe the mix accurately. Do not add any extra text, markdown formatting or commentary; just output the raw transcription text."
                         },
                         {
                             inline_data: {
-                                mime_type: file.type || "audio/webm",
+                                mime_type: mimeType,
                                 data: base64Audio
                             }
                         }
@@ -39,7 +45,7 @@ export async function POST(req: NextRequest) {
             ]
         };
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -50,7 +56,8 @@ export async function POST(req: NextRequest) {
         if (!response.ok) {
             const errorData = await response.json();
             console.error('Gemini API Error:', errorData);
-            return NextResponse.json({ error: 'Transcription failed', details: errorData }, { status: response.status });
+            const detailedMessage = errorData.error?.message || 'Transcription failed due to API error';
+            return NextResponse.json({ error: detailedMessage, details: errorData }, { status: response.status });
         }
 
         const data = await response.json();

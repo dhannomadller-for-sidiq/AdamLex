@@ -461,8 +461,13 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
                                     </div>
                                     <div className="col-span-2">
                                         <VoiceNoteRecorder
-                                            onUploadComplete={(url) => setHearingForm(f => ({ ...f, voice_note_url: url }))}
-                                            onReset={() => setHearingForm(f => ({ ...f, voice_note_url: '' }))}
+                                            onUploadComplete={(text) => {
+                                                setHearingForm(f => ({
+                                                    ...f,
+                                                    what_happened: f.what_happened ? `${f.what_happened} ${text}` : text
+                                                }));
+                                            }}
+                                            onReset={() => { }}
                                             onUploading={(status) => setIsUploading(status)}
                                         />
                                     </div>
@@ -477,8 +482,8 @@ export default function CaseProgressView({ leadId, userId, readOnly = false }: C
                                         onClick={handleAddHearing}
                                         disabled={submitting || isUploading || !hearingForm.hearing_date}
                                         className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${(submitting || isUploading || !hearingForm.hearing_date)
-                                                ? 'bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border border-[var(--border-color)] cursor-not-allowed'
-                                                : 'bg-[var(--accent-gold)] text-black shadow-lg shadow-[#d4af37]/20 hover:scale-[1.01] active:scale-[0.99]'
+                                            ? 'bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border border-[var(--border-color)] cursor-not-allowed'
+                                            : 'bg-[var(--accent-gold)] text-black shadow-lg shadow-[#d4af37]/20 hover:scale-[1.01] active:scale-[0.99]'
                                             }`}
                                     >
                                         {submitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}

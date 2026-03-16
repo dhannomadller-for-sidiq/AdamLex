@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import {
     Gavel, ChevronDown, ChevronUp,
     Calendar, AlertCircle,
-    Bell, Loader2, RefreshCcw
+    Bell, Loader2, RefreshCcw, Clock
 } from 'lucide-react';
 import { useCourtNotifications } from '@/hooks/useCourtNotifications';
 import CaseProgressView from '@/components/CaseProgressView';
@@ -105,7 +105,15 @@ export default function CourtWorkspace({ leads, userId }: CourtWorkspaceProps) {
                     </div>
                     <div>
                         <h3 className="font-bold text-[var(--text-primary)]">Court Workspace</h3>
-                        <p className="text-[11px] text-[var(--text-secondary)]">{leads.length} active case{leads.length !== 1 ? 's' : ''}</p>
+                        <div className="flex items-center gap-2">
+                            <p className="text-[11px] text-[var(--text-secondary)]">{leads.length} active case{leads.length !== 1 ? 's' : ''}</p>
+                            {leads.some(l => courtCases[l.id]?.last_synced_at) && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-1">
+                                    <Clock size={8} />
+                                    Synced: {new Date(Math.max(...leads.map(l => new Date(courtCases[l.id]?.last_synced_at || 0).getTime()))).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className="flex gap-2">
