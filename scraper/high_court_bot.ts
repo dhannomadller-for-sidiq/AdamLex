@@ -81,6 +81,11 @@ async function scrapeForAdvocate(name: string, date: string, supabase: any) {
 
         console.log(`📋 Found ${leads?.length || 0} active leads for advocate ${name}.`);
 
+        if (!leads || leads.length === 0) {
+            console.log(`⏭️ Skipping High Court search for ${name} (No active leads).`);
+            return { cases: 0, hearings: 0 };
+        }
+
         // Advocate name must be Base64 encoded for this specific API
         const encodedName = Buffer.from(encodeURIComponent(name)).toString('base64');
         const payload = new URLSearchParams();

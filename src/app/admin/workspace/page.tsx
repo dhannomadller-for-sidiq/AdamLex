@@ -213,7 +213,7 @@ export default function WorkspacePage() {
                             setIsSubmitting(true);
                             try {
                                 // 1. Get the list of advocates first
-                                const listRes = await fetch('/api/admin/profiles?role=lawyer,associate');
+                                const listRes = await fetch('/api/admin/profiles?role=lawyer,associate&active_only=true');
                                 const profiles = await listRes.json();
                                 const names = [...new Set(profiles.map((p: any) => p.full_name).filter(Boolean))] as string[];
 
