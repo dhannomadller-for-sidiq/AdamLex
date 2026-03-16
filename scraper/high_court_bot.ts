@@ -9,7 +9,7 @@ const CONFIG = {
     supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
 };
 
-async function syncAdvocateCases() {
+async function syncAdvocateCases(targetName?: string) {
     console.log('🚀 Starting High Court Advocate Case Sync (HTTP Mode)...');
     const summary = { advocates: 0, cases: 0, hearings: 0 };
 
@@ -28,7 +28,12 @@ async function syncAdvocateCases() {
 
         if (profileError) throw profileError;
 
-        const advocateNames = [...new Set(profiles?.map(p => p.full_name).filter(Boolean))];
+        let advocateNames = [...new Set(profiles?.map(p => p.full_name).filter(Boolean))];
+
+        if (targetName) {
+            advocateNames = advocateNames.filter(n => n === targetName);
+        }
+
         console.log(`🔍 Found ${advocateNames.length} unique advocates to sync.`);
         summary.advocates = advocateNames.length;
 

@@ -212,10 +212,32 @@ export default function WorkspacePage() {
                             if (!confirm('This will fetch the latest cases from High Court. Continue?')) return;
                             setIsSubmitting(true);
                             try {
-                                const res = await fetch('/api/admin/sync-court-cases', { method: 'POST' });
-                                const data = await res.json();
-                                if (!res.ok) throw new Error(data.error || 'Sync failed');
-                                alert('Sync completed! Refreshing workspace...');
+                                // 1. Get the list of advocates first
+                                const listRes = await fetch('/api/admin/profiles?role=lawyer,associate');
+                                const profiles = await listRes.json();
+                                const names = [...new Set(profiles.map((p: any) => p.full_name).filter(Boolean))] as string[];
+
+                                if (names.length === 0) {
+                                    alert('No advocates found to sync.');
+                                    return;
+                                }
+
+                                let totalCases = 0;
+                                let totalHearings = 0;
+
+                                // 2. Sync each advocate individually to avoid Vercel timeouts
+                                for (const name of names) {
+                                    const res = await fetch(`/api/admin/sync-court-cases?name=${encodeURIComponent(name)}`, { method: 'POST' });
+                                    if (!res.ok) {
+                                        console.error(`Failed to sync ${name}`);
+                                        continue;
+                                    }
+                                    const data = await res.json();
+                                    totalCases += data.summary?.cases || 0;
+                                    totalHearings += data.summary?.hearings || 0;
+                                }
+
+                                alert(`Sync completed! Found ${totalCases} cases and ${totalHearings} match your leads.`);
                                 fetchWorkspace();
                             } catch (err: any) {
                                 alert(`Sync Error: ${err.message}`);
