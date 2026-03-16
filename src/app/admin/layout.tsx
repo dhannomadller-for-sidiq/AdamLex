@@ -2,7 +2,7 @@
 
 import { Users, BarChart3, Settings, LogOut, Briefcase, FileText, Menu, X, Gavel, Clock, CreditCard, Calendar } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import GlobalSearch from '@/components/GlobalSearch';
@@ -102,7 +102,7 @@ export default function AdminLayout({
 
                 <nav className="flex-1 overflow-y-auto p-4 space-y-2">
                     <NavItem href="/admin" icon={<BarChart3 size={20} />} label="Dashboard Overview" />
-                    <NavItem href="/admin/workspace" icon={<Calendar size={20} />} label="Next Hearings" />
+                    <NavItem href="/admin/workspace?v=tomorrow" icon={<Calendar size={20} />} label="Next Hearings" />
                     <NavItem href="/admin/leads" icon={<FileText size={20} />} label="All Leads" />
                     <NavItem href="/admin/confirmed" icon={<Clock size={20} />} label="Approval Pending" />
                     <NavItem href="/admin/workspace" icon={<Briefcase size={20} />} label="Court Workspace" />
@@ -168,7 +168,9 @@ export default function AdminLayout({
 
 function NavItem({ href, icon, label }: { href: string, icon: React.ReactNode, label: string }) {
     const pathname = usePathname();
-    const active = pathname === href || (href !== '/admin' && pathname.startsWith(href));
+    const searchParams = useSearchParams();
+    const fullPath = searchParams.size > 0 ? `${pathname}?${searchParams.toString()}` : pathname;
+    const active = fullPath === href || (href !== '/admin' && !href.includes('?') && pathname.startsWith(href));
 
     return (
         <Link

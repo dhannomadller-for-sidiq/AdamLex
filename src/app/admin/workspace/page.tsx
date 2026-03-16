@@ -71,7 +71,8 @@ export default function WorkspacePage() {
                 profiles!assigned_to(full_name),
                 associate_profile:profiles!associate_id(full_name),
                 payments(total_payment, advance_payment, remarks),
-                followups(id, summary_text, created_at, status_at_time)
+                followups(id, summary_text, created_at, status_at_time),
+                court_hearings(next_hearing_date, hearing_date)
             `)
             .eq('status', 'Confirmed')
             .eq('admin_approved', true)
@@ -161,6 +162,24 @@ export default function WorkspacePage() {
         }
     };
 
+    const v = searchParams.get('v');
+    const isTomorrowView = v === 'tomorrow';
+
+    const getTomorrowDate = () => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return d.toISOString().split('T')[0];
+    };
+
+    const filteredLeads = isTomorrowView
+        ? leads.filter(lead => {
+            const newestHearing = (lead.court_hearings || []).sort((a: any, b: any) =>
+                new Date(b.hearing_date || 0).getTime() - new Date(a.hearing_date || 0).getTime()
+            )[0];
+            return newestHearing?.next_hearing_date === getTomorrowDate();
+        })
+        : leads;
+
     const caseColor = (mode: string) => {
         const m = (mode || '').toLowerCase();
         if (m.includes('criminal')) return 'text-red-400 bg-red-400/10 border-red-400/30';
@@ -176,14 +195,16 @@ export default function WorkspacePage() {
                 <div>
                     <h2 className="text-3xl font-bold text-[var(--text-primary)] flex items-center gap-3">
                         <Gavel size={28} className="text-[var(--accent-gold)]" />
-                        Workspace
+                        {isTomorrowView ? "Tomorrow's Hearings" : "Workspace"}
                     </h2>
                     <p className="text-[var(--text-secondary)] mt-1">
-                        Active court cases — approved and in progress.
+                        {isTomorrowView
+                            ? "Cases scheduled for court action tomorrow."
+                            : "Active court cases — approved and in progress."}
                     </p>
                 </div>
                 <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-[rgba(139,92,246,0.12)] text-[#a78bfa] border border-[rgba(139,92,246,0.3)]">
-                    {leads.length} Active Cases
+                    {filteredLeads.length} {isTomorrowView ? 'Hearings' : 'Active Cases'}
                 </span>
             </header>
 
@@ -208,7 +229,7 @@ export default function WorkspacePage() {
                         <span className="text-[10px] uppercase font-bold text-[var(--text-secondary)] tracking-widest text-right">Actions</span>
                     </div>
 
-                    {leads.map((lead) => {
+                    {filteredLeads.map((lead) => {
                         const lawyer = (lead.profiles as any)?.full_name || '—';
                         const associate = (lead.associate_profile as any)?.full_name || '—';
                         const totalFee = lead.payments?.[0]?.total_payment || 0;
