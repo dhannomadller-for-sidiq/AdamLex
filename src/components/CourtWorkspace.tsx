@@ -70,14 +70,6 @@ export default function CourtWorkspace({ leads, userId }: CourtWorkspaceProps) {
         return 'upcoming';
     };
 
-    const urgencyStyle = (u: string) => {
-        if (u === 'overdue') return 'text-[var(--danger-red)] bg-[rgba(239,68,68,0.1)] border-[rgba(239,68,68,0.3)]';
-        if (u === 'today') return 'text-[var(--danger-red)] bg-[rgba(239,68,68,0.08)] border-[rgba(239,68,68,0.2)] animate-pulse';
-        if (u === 'tomorrow') return 'text-yellow-400 bg-[rgba(234,179,8,0.1)] border-[rgba(234,179,8,0.2)]';
-        if (u === 'soon') return 'text-[var(--accent-gold)] bg-[rgba(212,175,55,0.1)] border-[rgba(212,175,55,0.2)]';
-        return 'text-[var(--text-secondary)] bg-[rgba(55,65,81,0.2)] border-[var(--border-color)]';
-    };
-
     if (loading) {
         return (
             <div className="flex items-center justify-center py-24">
@@ -132,53 +124,110 @@ export default function CourtWorkspace({ leads, userId }: CourtWorkspaceProps) {
                 </div>
             </div>
 
-            {leads.map(lead => {
-                const courtCase = courtCases[lead.id];
-                const nextHearing = getNextHearing(lead.id);
-                const urgency = getHearingUrgency(nextHearing);
-                const isExpanded = expandedCase === lead.id;
-
-                return (
-                    <div key={lead.id} className="rounded-2xl border border-[var(--border-color)] bg-[rgba(17,24,39,0.5)] overflow-hidden">
-                        <div
-                            className="p-5 flex items-center gap-4 cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors"
-                            onClick={() => setExpandedCase(isExpanded ? null : lead.id)}
-                        >
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h4 className="font-bold text-[var(--text-primary)] truncate">{lead.client_name}</h4>
-                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(212,175,55,0.1)] text-[var(--accent-gold)] border border-[rgba(212,175,55,0.2)] uppercase font-bold tracking-wider shrink-0">
-                                        {lead.case_mode || 'General'}
-                                    </span>
-                                </div>
-                                {courtCase ? (
-                                    <p className="text-xs text-[var(--text-secondary)] font-mono">
-                                        {courtCase.cnr_number ? `CNR: ${courtCase.cnr_number}` : 'No CNR Number'}
-                                        {courtCase.court_name ? ` · ${courtCase.court_name}` : ''}
-                                    </p>
-                                ) : (
-                                    <p className="text-xs text-yellow-500 flex items-center gap-1"><AlertCircle size={11} /> Not registered in court yet</p>
-                                )}
-                            </div>
-
-                            {nextHearing && (
-                                <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 shrink-0 ${urgencyStyle(urgency)}`}>
-                                    <Calendar size={12} />
-                                    {urgency === 'today' ? 'TODAY' : urgency === 'tomorrow' ? 'Tomorrow' : new Date(nextHearing).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
-                                </div>
-                            )}
-
-                            {isExpanded ? <ChevronUp size={18} className="text-[var(--text-secondary)] shrink-0" /> : <ChevronDown size={18} className="text-[var(--text-secondary)] shrink-0" />}
-                        </div>
-
-                        {isExpanded && (
-                            <div className="border-t border-[var(--border-color)] p-6 animate-fade-in bg-[rgba(0,0,0,0.1)]">
-                                <CaseProgressView leadId={lead.id} userId={userId} readOnly={false} />
-                            </div>
-                        )}
+            {/* Next Hearing Section */}
+            {leads.some(l => getNextHearing(l.id)) && (
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 px-1">
+                        <Calendar size={14} className="text-[var(--accent-gold)]" />
+                        <h4 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider">Next Hearings</h4>
                     </div>
-                );
-            })}
+                    {leads.filter(l => getNextHearing(l.id)).map(lead => (
+                        <LeadCard
+                            key={`upcoming-${lead.id}`}
+                            lead={lead}
+                            courtCase={courtCases[lead.id]}
+                            nextHearing={getNextHearing(lead.id)}
+                            urgency={getHearingUrgency(getNextHearing(lead.id))}
+                            isExpanded={expandedCase === lead.id}
+                            onToggle={() => setExpandedCase(expandedCase === lead.id ? null : lead.id)}
+                            userId={userId}
+                        />
+                    ))}
+                    <div className="h-4" />
+                </div>
+            )}
+
+            <div className="flex items-center gap-2 px-1">
+                <Gavel size={14} className="text-[var(--text-secondary)]" />
+                <h4 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider">All Active Cases</h4>
+            </div>
+
+            {leads.map(lead => (
+                <LeadCard
+                    key={`all-${lead.id}`}
+                    lead={lead}
+                    courtCase={courtCases[lead.id]}
+                    nextHearing={getNextHearing(lead.id)}
+                    urgency={getHearingUrgency(getNextHearing(lead.id))}
+                    isExpanded={expandedCase === lead.id}
+                    onToggle={() => setExpandedCase(expandedCase === lead.id ? null : lead.id)}
+                    userId={userId}
+                />
+            ))}
+        </div>
+    );
+}
+
+interface LeadCardProps {
+    lead: any;
+    courtCase: any;
+    nextHearing: string | null;
+    urgency: string;
+    isExpanded: boolean;
+    onToggle: () => void;
+    userId: string;
+}
+
+function LeadCard({
+    lead, courtCase, nextHearing, urgency,
+    isExpanded, onToggle, userId
+}: LeadCardProps) {
+    const urgencyStyle = (u: string) => {
+        if (u === 'overdue') return 'text-[var(--danger-red)] bg-[rgba(239,68,68,0.1)] border-[rgba(239,68,68,0.3)]';
+        if (u === 'today') return 'text-[var(--danger-red)] bg-[rgba(239,68,68,0.08)] border-[rgba(239,68,68,0.2)] animate-pulse';
+        if (u === 'tomorrow') return 'text-yellow-400 bg-[rgba(234,179,8,0.1)] border-[rgba(234,179,8,0.2)]';
+        if (u === 'soon') return 'text-[var(--accent-gold)] bg-[rgba(212,175,55,0.1)] border-[rgba(212,175,55,0.2)]';
+        return 'text-[var(--text-secondary)] bg-[rgba(55,65,81,0.2)] border-[var(--border-color)]';
+    };
+
+    return (
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[rgba(17,24,39,0.5)] overflow-hidden">
+            <div
+                className="p-5 flex items-center gap-4 cursor-pointer hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+                onClick={onToggle}
+            >
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-bold text-[var(--text-primary)] truncate">{lead.client_name}</h4>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[rgba(212,175,55,0.1)] text-[var(--accent-gold)] border border-[rgba(212,175,55,0.2)] uppercase font-bold tracking-wider shrink-0">
+                            {lead.case_mode || 'General'}
+                        </span>
+                    </div>
+                    {courtCase ? (
+                        <p className="text-xs text-[var(--text-secondary)] font-mono">
+                            {courtCase.case_number ? `Case: ${courtCase.case_number}` : 'No Case Number'}
+                            {courtCase.court_hall ? ` · Hall: ${courtCase.court_hall}` : ''}
+                        </p>
+                    ) : (
+                        <p className="text-xs text-yellow-500 flex items-center gap-1"><AlertCircle size={11} /> Not registered in court yet</p>
+                    )}
+                </div>
+
+                {nextHearing && (
+                    <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-1.5 shrink-0 ${urgencyStyle(urgency)}`}>
+                        <Calendar size={12} />
+                        {urgency === 'today' ? 'TODAY' : urgency === 'tomorrow' ? 'Tomorrow' : new Date(nextHearing).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                    </div>
+                )}
+
+                {isExpanded ? <ChevronUp size={18} className="text-[var(--text-secondary)] shrink-0" /> : <ChevronDown size={18} className="text-[var(--text-secondary)] shrink-0" />}
+            </div>
+
+            {isExpanded && (
+                <div className="border-t border-[var(--border-color)] p-6 animate-fade-in bg-[rgba(0,0,0,0.1)]">
+                    <CaseProgressView leadId={lead.id} userId={userId} readOnly={false} />
+                </div>
+            )}
         </div>
     );
 }
