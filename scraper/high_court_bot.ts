@@ -23,29 +23,35 @@ async function syncAdvocateCases(targetName?: string) {
     try {
         const { data: profiles, error: profileError } = await supabase
             .from('profiles')
-            .select('full_name')
+            .select('id, full_name, professional_name')
             .in('role', ['lawyer', 'associate']);
 
         if (profileError) throw profileError;
 
-        let advocateNames = [...new Set(profiles?.map(p => p.full_name).filter(Boolean))];
+        // Build sync targets: prioritize professional_name, fallback to full_name
+        let syncTargets = (profiles || []).map(p => ({
+            id: p.id,
+            fullName: p.full_name,
+            searchTerm: p.professional_name // Use professional_name if provided by Admin
+        })).filter(t => t.searchTerm || t.fullName); // Ensure we have something to search for
 
         if (targetName) {
-            advocateNames = advocateNames.filter(n => n === targetName);
+            syncTargets = syncTargets.filter(t => t.fullName === targetName || t.searchTerm === targetName);
         }
 
-        console.log(`🔍 Found ${advocateNames.length} unique advocates to sync.`);
-        summary.advocates = advocateNames.length;
+        console.log(`🔍 Found ${syncTargets.length} advocates to sync.`);
+        summary.advocates = syncTargets.length;
 
         const targetDate = new Date();
         targetDate.setDate(targetDate.getDate() + 1);
         const dateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
         console.log(`📅 Syncing for target date: ${dateStr}`);
 
-        // Sync advocates sequentially to avoid overwhelming the target site or Supabase
-        for (const name of advocateNames) {
-            console.log(`🔎 Searching for: ${name}`);
-            const result = await scrapeForAdvocate(name, dateStr, supabase);
+        // Sync targets sequentially
+        for (const target of syncTargets) {
+            const nameToSearch = target.searchTerm || target.fullName;
+            console.log(`🔎 Searching for: ${nameToSearch} (${target.fullName})`);
+            const result = await scrapeForAdvocate(nameToSearch, target.id, dateStr, supabase);
             if (result) {
                 summary.cases += result.cases;
                 summary.hearings += result.hearings;
@@ -60,29 +66,20 @@ async function syncAdvocateCases(targetName?: string) {
     }
 }
 
-async function scrapeForAdvocate(name: string, date: string, supabase: any) {
+async function scrapeForAdvocate(searchTerm: string, profileId: string, date: string, supabase: any) {
     try {
-        // 1. Fetch leads associated with this advocate name (either as lawyer or associate)
-        // We look for profiles with this name first
-        const { data: profiles } = await supabase.from('profiles').select('id').eq('full_name', name);
-        const profileIds = profiles?.map((p: any) => p.id) || [];
-
-        if (profileIds.length === 0) {
-            console.log(`⚠️ No profiles found for advocate: ${name}`);
-            return;
-        }
-
+        // 1. Fetch leads associated with this advocate ID
         const { data: leads } = await supabase
             .from('leads')
             .select('id, client_name, assigned_to, associate_id')
-            .or(`assigned_to.in.(${profileIds.join(',')}),associate_id.in.(${profileIds.join(',')})`)
+            .or(`assigned_to.eq.${profileId},associate_id.eq.${profileId}`)
             .eq('status', 'Confirmed')
             .eq('admin_approved', true);
 
-        console.log(`📋 Found ${leads?.length || 0} active leads for advocate ${name}.`);
+        console.log(`📋 Found ${leads?.length || 0} active leads for advocate ID ${profileId}.`);
 
         // Advocate name must be Base64 encoded for this specific API
-        const encodedName = Buffer.from(encodeURIComponent(name)).toString('base64');
+        const encodedName = Buffer.from(encodeURIComponent(searchTerm)).toString('base64');
         const payload = new URLSearchParams();
         payload.append('advocate_name', encodedName);
         payload.append('from_date', date);
@@ -130,7 +127,7 @@ async function scrapeForAdvocate(name: string, date: string, supabase: any) {
             }
         });
 
-        console.log(`✅ Scraped ${cases.length} cases for ${name}.`);
+        console.log(`✅ Scraped ${cases.length} cases using term: ${searchTerm}.`);
         if (cases.length === 0) return { cases: 0, hearings: 0 };
 
         // 1. Bulk Upsert Cases
@@ -143,7 +140,7 @@ async function scrapeForAdvocate(name: string, date: string, supabase: any) {
             item_no: c.itemNo,
             list_type: c.listType,
             lead_id: c.lead_id,
-            advocate_id: profileIds[0], // Store which advocate this case belongs to
+            advocate_id: profileId, // Store which advocate this case belongs to
             last_synced_at: new Date().toISOString(),
         }));
 
@@ -169,7 +166,7 @@ async function scrapeForAdvocate(name: string, date: string, supabase: any) {
                         hearing_date: date,
                         next_hearing_date: date,
                         what_happened: `Automated Sync: ${c.listType || 'Court Listing'}`,
-                        recorded_by: profileIds[0]
+                        recorded_by: profileId
                     });
                 }
             }

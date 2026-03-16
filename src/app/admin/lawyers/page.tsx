@@ -13,6 +13,7 @@ export default function AdminLawyersPage() {
     // Form State
     const [formData, setFormData] = useState({
         full_name: '',
+        professional_name: '',
         phone_number: '',
         enrollment_no: '',
         designation: '',
@@ -25,6 +26,7 @@ export default function AdminLawyersPage() {
     const [editingLawyerId, setEditingLawyerId] = useState<string | null>(null);
     const [editFormData, setEditFormData] = useState({
         full_name: '',
+        professional_name: '',
         phone_number: '',
         enrollment_no: '',
         designation: '',
@@ -116,7 +118,7 @@ export default function AdminLawyersPage() {
 
             // Success
             setIsAddModalOpen(false);
-            setFormData({ full_name: '', phone_number: '', enrollment_no: '', designation: '', username: '', password: '' });
+            setFormData({ full_name: '', professional_name: '', phone_number: '', enrollment_no: '', designation: '', username: '', password: '' });
             fetchLawyers(); // Refresh the list
 
         } catch (err: any) {
@@ -130,6 +132,7 @@ export default function AdminLawyersPage() {
         setEditingLawyerId(lawyer.id);
         setEditFormData({
             full_name: lawyer.full_name || '',
+            professional_name: lawyer.professional_name || '',
             phone_number: lawyer.phone_number || '',
             enrollment_no: lawyer.enrollment_no || '',
             designation: lawyer.designation || '',
@@ -181,7 +184,7 @@ export default function AdminLawyersPage() {
 
                     <button
                         onClick={() => {
-                            setFormData({ full_name: '', phone_number: '', enrollment_no: '', designation: '', username: '', password: '' });
+                            setFormData({ full_name: '', professional_name: '', phone_number: '', enrollment_no: '', designation: '', username: '', password: '' });
                             setErrorMsg('');
                             setIsAddModalOpen(true);
                         }}
@@ -281,6 +284,10 @@ export default function AdminLawyersPage() {
                                         <input type="text" value={formData.enrollment_no} onChange={e => setFormData({ ...formData, enrollment_no: e.target.value })} className="input-glass w-full py-2" />
                                     </div>
                                     <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase font-mono text-[var(--accent-gold)]">Professional Name (for Sync)</label>
+                                        <input type="text" placeholder="e.g. FAISAL I P" value={formData.professional_name} onChange={e => setFormData({ ...formData, professional_name: e.target.value })} className="input-glass w-full py-2 border-[var(--accent-gold)]" />
+                                    </div>
+                                    <div className="space-y-1">
                                         <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Designation</label>
                                         <input type="text" value={formData.designation} onChange={e => setFormData({ ...formData, designation: e.target.value })} className="input-glass w-full py-2" />
                                     </div>
@@ -342,6 +349,10 @@ export default function AdminLawyersPage() {
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Enrollment No.</label>
                                         <input type="text" value={editFormData.enrollment_no} onChange={e => setEditFormData({ ...editFormData, enrollment_no: e.target.value })} className="input-glass w-full py-2" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase font-mono text-[var(--accent-gold)]">Professional Name (for Sync)</label>
+                                        <input type="text" placeholder="e.g. FAISAL I P" value={editFormData.professional_name} onChange={e => setEditFormData({ ...editFormData, professional_name: e.target.value })} className="input-glass w-full py-2 border-[var(--accent-gold)]" />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Designation</label>

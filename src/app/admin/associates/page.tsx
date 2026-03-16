@@ -15,6 +15,7 @@ export default function AdminAssociatesPage() {
     // Form State
     const [formData, setFormData] = useState({
         full_name: '',
+        professional_name: '',
         phone_number: '',
         location: '',
         specialization: '',
@@ -71,7 +72,7 @@ export default function AdminAssociatesPage() {
             window.open(waLink, '_blank');
 
             setIsAddModalOpen(false);
-            setFormData({ full_name: '', phone_number: '', location: '', specialization: '', username: '', password: '' });
+            setFormData({ full_name: '', professional_name: '', phone_number: '', location: '', specialization: '', username: '', password: '' });
             fetchAssociates();
         } catch (err: any) {
             setErrorMsg(err.message);
@@ -111,6 +112,7 @@ export default function AdminAssociatesPage() {
         setEditingId(assoc.id);
         setFormData({
             full_name: assoc.full_name || '',
+            professional_name: assoc.professional_name || '',
             phone_number: assoc.phone_number || '',
             location: assoc.location || '',
             specialization: assoc.specialization || '',
@@ -228,6 +230,10 @@ export default function AdminAssociatesPage() {
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Location</label>
                                         <input type="text" value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} className="input-glass w-full py-2" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold text-[var(--accent-gold)] uppercase font-mono">Professional Name (Sync)</label>
+                                        <input type="text" placeholder="e.g. FAISAL I P" value={formData.professional_name} onChange={e => setFormData({ ...formData, professional_name: e.target.value })} className="input-glass w-full py-2 border-[var(--accent-gold)] shadow-[0_0_10px_rgba(212,175,55,0.1)]" />
                                     </div>
                                     <div className="space-y-1">
                                         <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Specialization</label>

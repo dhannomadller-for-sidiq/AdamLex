@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { email, password, full_name, phone_number, enrollment_no, designation, username } = body;
+        const { email, password, full_name, professional_name, phone_number, enrollment_no, designation, username } = body;
 
         // Ensure required fields
         if (!email || !password || !full_name) {
@@ -46,6 +46,7 @@ export async function POST(request: Request) {
             id: newUserId,
             role: 'lawyer',
             full_name,
+            professional_name,
             phone_number,
             username
         }]);
