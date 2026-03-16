@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, BarChart3, Settings, LogOut, Briefcase, FileText, Menu, X, Gavel, Clock, CreditCard } from 'lucide-react';
+import { Users, BarChart3, Settings, LogOut, Briefcase, FileText, Menu, X, Gavel, Clock, CreditCard, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -102,9 +102,10 @@ export default function AdminLayout({
 
                 <nav className="flex-1 overflow-y-auto p-4 space-y-2">
                     <NavItem href="/admin" icon={<BarChart3 size={20} />} label="Dashboard Overview" />
+                    <NavItem href="/admin/workspace" icon={<Calendar size={20} />} label="Next Hearings" />
                     <NavItem href="/admin/leads" icon={<FileText size={20} />} label="All Leads" />
                     <NavItem href="/admin/confirmed" icon={<Clock size={20} />} label="Approval Pending" />
-                    <NavItem href="/admin/workspace" icon={<Briefcase size={20} />} label="Active Workspace" />
+                    <NavItem href="/admin/workspace" icon={<Briefcase size={20} />} label="Court Workspace" />
                     <NavItem href="/admin/payments" icon={<CreditCard size={20} />} label="Payments" />
                     <NavItem href="/admin/lawyers" icon={<Users size={20} />} label="Lawyer Roster" />
                     <NavItem href="/admin/associates" icon={<Users size={20} />} label="Associate Roster" />

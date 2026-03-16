@@ -126,7 +126,7 @@ export default function CourtWorkspace({ leads, userId }: CourtWorkspaceProps) {
 
             {/* Next Hearing Section */}
             {leads.some(l => getNextHearing(l.id)) && (
-                <div className="space-y-3">
+                <div id="next-hearings" className="space-y-3">
                     <div className="flex items-center gap-2 px-1">
                         <Calendar size={14} className="text-[var(--accent-gold)]" />
                         <h4 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider">Next Hearings</h4>
