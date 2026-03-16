@@ -11,16 +11,16 @@ const CONFIG = {
 
 async function syncAdvocateCases() {
     console.log('🚀 Starting High Court Advocate Case Sync (HTTP Mode)...');
+    const summary = { advocates: 0, cases: 0, hearings: 0 };
 
     if (!CONFIG.supabaseUrl || !CONFIG.supabaseKey) {
         console.error('❌ Supabase credentials missing.');
-        return;
+        return summary;
     }
 
     const supabase = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
     try {
-        // 1. Fetch advocate names from profiles
         const { data: profiles, error: profileError } = await supabase
             .from('profiles')
             .select('full_name')
@@ -30,22 +30,28 @@ async function syncAdvocateCases() {
 
         const advocateNames = [...new Set(profiles?.map(p => p.full_name).filter(Boolean))];
         console.log(`🔍 Found ${advocateNames.length} unique advocates to sync.`);
+        summary.advocates = advocateNames.length;
 
-        // Target tomorrow's date (e.g., on the 15th, sync for the 16th)
         const targetDate = new Date();
         targetDate.setDate(targetDate.getDate() + 1);
         const dateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
         console.log(`📅 Syncing for target date: ${dateStr}`);
 
+        // Sync advocates sequentially to avoid overwhelming the target site or Supabase
         for (const name of advocateNames) {
             console.log(`🔎 Searching for: ${name}`);
-            await scrapeForAdvocate(name, dateStr, supabase);
+            const result = await scrapeForAdvocate(name, dateStr, supabase);
+            if (result) {
+                summary.cases += result.cases;
+                summary.hearings += result.hearings;
+            }
         }
 
     } catch (error) {
         console.error('❌ Sync error:', error);
     } finally {
-        console.log('🏁 Sync finished.');
+        console.log('🏁 Sync finished.', summary);
+        return summary;
     }
 }
 
@@ -120,6 +126,8 @@ async function scrapeForAdvocate(name: string, date: string, supabase: any) {
         });
 
         console.log(`✅ Scraped ${cases.length} cases for ${name}.`);
+        let syncedCases = 0;
+        let syncedHearings = 0;
 
         // Sync to Supabase
         for (const c of cases) {
@@ -144,6 +152,7 @@ async function scrapeForAdvocate(name: string, date: string, supabase: any) {
                 console.error(`❌ Error syncing case ${c.caseNumber}:`, syncError);
                 continue;
             }
+            syncedCases++;
 
             // If we have a lead_id, also create/update a hearing record for the target date
             if (c.lead_id && savedCase) {
@@ -158,12 +167,18 @@ async function scrapeForAdvocate(name: string, date: string, supabase: any) {
                         recorded_by: profileIds[0] // Use the first matching profile as recorder
                     }, { onConflict: 'lead_id,hearing_date' });
 
-                if (hearError) console.error(`❌ Error syncing hearing for ${c.caseNumber}:`, hearError);
+                if (hearError) {
+                    console.error(`❌ Error syncing hearing for ${c.caseNumber}:`, hearError);
+                } else {
+                    syncedHearings++;
+                }
             }
         }
+        return { cases: syncedCases, hearings: syncedHearings };
 
     } catch (error) {
         console.error(`❌ Error scraping for ${name}:`, error);
+        return { cases: 0, hearings: 0 };
     }
 }
 
