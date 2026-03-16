@@ -105,6 +105,7 @@ export default function AdminLawyersPage() {
                     email: authEmail,
                     password: formData.password,
                     full_name: formData.full_name,
+                    professional_name: formData.professional_name,
                     phone_number: formData.phone_number,
                     enrollment_no: formData.enrollment_no,
                     designation: formData.designation,
