@@ -227,14 +227,29 @@ export default function WorkspacePage() {
 
                                 // 2. Sync each advocate individually to avoid Vercel timeouts
                                 for (const name of names) {
-                                    const res = await fetch(`/api/admin/sync-court-cases?name=${encodeURIComponent(name)}`, { method: 'POST' });
-                                    if (!res.ok) {
-                                        console.error(`Failed to sync ${name}`);
-                                        continue;
+                                    const controller = new AbortController();
+                                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+                                    try {
+                                        const res = await fetch(`/api/admin/sync-court-cases?name=${encodeURIComponent(name)}`, {
+                                            method: 'POST',
+                                            signal: controller.signal
+                                        });
+                                        clearTimeout(timeoutId);
+
+                                        if (!res.ok) {
+                                            const text = await res.text();
+                                            console.error(`Status ${res.status} for ${name}: ${text.substring(0, 100)}`);
+                                            continue;
+                                        }
+
+                                        const data = await res.json();
+                                        totalCases += data.summary?.cases || 0;
+                                        totalHearings += data.summary?.hearings || 0;
+                                    } catch (fetchErr: any) {
+                                        clearTimeout(timeoutId);
+                                        console.error(`Fetch error for ${name}:`, fetchErr.name === 'AbortError' ? 'Timeout' : fetchErr.message);
                                     }
-                                    const data = await res.json();
-                                    totalCases += data.summary?.cases || 0;
-                                    totalHearings += data.summary?.hearings || 0;
                                 }
 
                                 alert(`Sync completed! Found ${totalCases} cases and ${totalHearings} match your leads.`);
