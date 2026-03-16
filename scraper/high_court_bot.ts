@@ -31,10 +31,11 @@ async function syncAdvocateCases() {
         const advocateNames = [...new Set(profiles?.map(p => p.full_name).filter(Boolean))];
         console.log(`🔍 Found ${advocateNames.length} unique advocates to sync.`);
 
-        // Today's date in yyyy-mm-dd format for the API
-        const today = new Date();
-        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        console.log(`📅 Syncing for date: ${dateStr}`);
+        // Target tomorrow's date (e.g., on the 15th, sync for the 16th)
+        const targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() + 1);
+        const dateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
+        console.log(`📅 Syncing for target date: ${dateStr}`);
 
         for (const name of advocateNames) {
             console.log(`🔎 Searching for: ${name}`);
