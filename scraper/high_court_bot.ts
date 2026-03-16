@@ -100,6 +100,8 @@ async function scrapeForAdvocate(name: string, date: string, supabase: any) {
                     respondent: c.parties.split('Vs')[1]?.trim(),
                     bench: c.bench,
                     court_hall: c.courtHall,
+                    item_no: c.itemNo,
+                    list_type: c.listType,
                     last_synced_at: new Date().toISOString(),
                 }, { onConflict: 'case_number' });
 

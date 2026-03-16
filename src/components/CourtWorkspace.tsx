@@ -207,6 +207,8 @@ function LeadCard({
                         <p className="text-xs text-[var(--text-secondary)] font-mono">
                             {courtCase.case_number ? `Case: ${courtCase.case_number}` : 'No Case Number'}
                             {courtCase.court_hall ? ` · Hall: ${courtCase.court_hall}` : ''}
+                            {courtCase.item_no ? ` · Item: ${courtCase.item_no}` : ''}
+                            {courtCase.list_type ? ` · List: ${courtCase.list_type}` : ''}
                         </p>
                     ) : (
                         <p className="text-xs text-yellow-500 flex items-center gap-1"><AlertCircle size={11} /> Not registered in court yet</p>

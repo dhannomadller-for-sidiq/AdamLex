@@ -72,7 +72,8 @@ export default function WorkspacePage() {
                 associate_profile:profiles!associate_id(full_name),
                 payments(total_payment, advance_payment, remarks),
                 followups(id, summary_text, created_at, status_at_time),
-                court_hearings(next_hearing_date, hearing_date)
+                court_hearings(next_hearing_date, hearing_date),
+                court_cases(item_no, list_type, case_number, bench, court_hall)
             `)
             .eq('status', 'Confirmed')
             .eq('admin_approved', true)
@@ -310,6 +311,22 @@ export default function WorkspacePage() {
                                                                 {lead.case_summary || 'No summary provided.'}
                                                             </div>
                                                         </div>
+                                                        {lead.court_cases?.[0] && (
+                                                            <div className="grid grid-cols-2 gap-4">
+                                                                <div>
+                                                                    <h4 className="text-[10px] uppercase font-bold text-[var(--accent-gold)] tracking-widest mb-1">Item No</h4>
+                                                                    <p className="text-sm font-semibold text-[var(--text-primary)]">{lead.court_cases[0].item_no || '—'}</p>
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="text-[10px] uppercase font-bold text-[var(--accent-gold)] tracking-widest mb-1">List Type</h4>
+                                                                    <p className="text-sm font-semibold text-[var(--text-primary)]">{lead.court_cases[0].list_type || '—'}</p>
+                                                                </div>
+                                                                <div className="col-span-2">
+                                                                    <h4 className="text-[10px] uppercase font-bold text-[var(--accent-gold)] tracking-widest mb-1">Bench</h4>
+                                                                    <p className="text-sm text-[var(--text-secondary)]">{lead.court_cases[0].bench || '—'}</p>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                         {lead.associate_remarks && (
                                                             <div>
                                                                 <h4 className="text-[10px] uppercase font-bold text-[var(--accent-gold)] tracking-widest mb-2">Admin Remarks</h4>

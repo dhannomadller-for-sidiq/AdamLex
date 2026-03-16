@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS public.court_cases (
   court_name TEXT,
   case_type TEXT,
   filing_date DATE,
+  item_no TEXT,
+  list_type TEXT,
   current_stage INT DEFAULT 1,
   notes TEXT,
   last_synced_at TIMESTAMP WITH TIME ZONE,
