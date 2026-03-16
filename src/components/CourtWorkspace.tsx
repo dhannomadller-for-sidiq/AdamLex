@@ -124,14 +124,14 @@ export default function CourtWorkspace({ leads, userId }: CourtWorkspaceProps) {
                 </div>
             </div>
 
-            {/* Next Hearing Section */}
-            {leads.some(l => getNextHearing(l.id)) && (
+            {/* Next Hearing Section - Showing only Tomorrow's hearings */}
+            {leads.some(l => getHearingUrgency(getNextHearing(l.id)) === 'tomorrow') && (
                 <div id="next-hearings" className="space-y-3">
                     <div className="flex items-center gap-2 px-1">
                         <Calendar size={14} className="text-[var(--accent-gold)]" />
-                        <h4 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider">Next Hearings</h4>
+                        <h4 className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wider">Tomorrow's Hearings</h4>
                     </div>
-                    {leads.filter(l => getNextHearing(l.id)).map(lead => (
+                    {leads.filter(l => getHearingUrgency(getNextHearing(l.id)) === 'tomorrow').map(lead => (
                         <LeadCard
                             key={`upcoming-${lead.id}`}
                             lead={lead}
