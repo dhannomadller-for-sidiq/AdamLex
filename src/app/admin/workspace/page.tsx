@@ -16,7 +16,9 @@ import {
     Users,
     Clock,
     Plus,
-    Check
+    Check,
+    RefreshCcw,
+    AlertCircle
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import ChatPanel from '@/components/ChatPanel';
@@ -204,9 +206,33 @@ export default function WorkspacePage() {
                             : "Active court cases — approved and in progress."}
                     </p>
                 </div>
-                <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-[rgba(139,92,246,0.12)] text-[#a78bfa] border border-[rgba(139,92,246,0.3)]">
-                    {filteredLeads.length} {isTomorrowView ? 'Hearings' : 'Active Cases'}
-                </span>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={async () => {
+                            if (!confirm('This will fetch the latest cases from High Court. Continue?')) return;
+                            setIsSubmitting(true);
+                            try {
+                                const res = await fetch('/api/admin/sync-court-cases', { method: 'POST' });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.error || 'Sync failed');
+                                alert('Sync completed! Refreshing workspace...');
+                                fetchWorkspace();
+                            } catch (err: any) {
+                                alert(`Sync Error: ${err.message}`);
+                            } finally {
+                                setIsSubmitting(false);
+                            }
+                        }}
+                        disabled={isSubmitting}
+                        className="h-10 px-4 text-xs font-bold rounded-xl bg-[rgba(255,255,255,0.05)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:text-white hover:bg-[rgba(255,255,255,0.1)] transition-all flex items-center gap-2"
+                    >
+                        {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} className="text-[var(--accent-gold)]" />}
+                        Sync High Court
+                    </button>
+                    <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-[rgba(139,92,246,0.12)] text-[#a78bfa] border border-[rgba(139,92,246,0.3)]">
+                        {filteredLeads.length} {isTomorrowView ? 'Hearings' : 'Active Cases'}
+                    </span>
+                </div>
             </header>
 
             {loading ? (
