@@ -1,5 +1,11 @@
 -- SQL Migration to create court tracking tables if they don't exist
 
+-- Add sync_enabled to profiles
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS sync_enabled BOOLEAN DEFAULT TRUE;
+
+-- Add professional_name to profiles (Managed Bar Council Name)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS professional_name TEXT;
+
 -- 1. Create court_cases table
 CREATE TABLE IF NOT EXISTS public.court_cases (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

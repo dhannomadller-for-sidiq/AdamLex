@@ -23,7 +23,7 @@ async function syncAdvocateCases(targetName?: string) {
     try {
         const { data: profiles, error: profileError } = await supabase
             .from('profiles')
-            .select('id, full_name, professional_name')
+            .select('id, full_name, professional_name, sync_enabled')
             .in('role', ['lawyer', 'associate']);
 
         if (profileError) throw profileError;
@@ -32,7 +32,8 @@ async function syncAdvocateCases(targetName?: string) {
         let syncTargets = (profiles || []).map(p => ({
             id: p.id,
             fullName: p.full_name,
-            searchTerm: p.professional_name // Managed by Admin
+            searchTerm: p.professional_name, // Managed by Admin
+            syncEnabled: p.sync_enabled !== false // Default to true if null
         }));
 
         if (targetName) {
@@ -42,11 +43,11 @@ async function syncAdvocateCases(targetName?: string) {
             // but the current structure expects the profile to exist.
             if (syncTargets.length === 0) {
                 // Fallback: search for this name literally if no profile found (matching existing behavior)
-                syncTargets = [{ id: '', fullName: targetName, searchTerm: targetName }];
+                syncTargets = [{ id: '', fullName: targetName, searchTerm: targetName, syncEnabled: true }];
             }
         } else {
-            // Bulk sync (Daily/Manual): ONLY sync those with a professional_name set (Opt-in)
-            syncTargets = syncTargets.filter(t => t.searchTerm && t.searchTerm.trim() !== '');
+            // Bulk sync (Daily/Manual): ONLY sync those with a professional_name set AND sync_enabled is true
+            syncTargets = syncTargets.filter(t => t.syncEnabled && t.searchTerm && t.searchTerm.trim() !== '');
         }
 
         console.log(`🔍 Found ${syncTargets.length} opt-in advocates to sync.`);

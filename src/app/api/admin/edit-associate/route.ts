@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { id, password, full_name, professional_name, phone_number, location, specialization, username } = body;
+        const { id, password, full_name, professional_name, sync_enabled, phone_number, location, specialization, username } = body;
 
         if (!id || !full_name) {
             return NextResponse.json({ error: 'Missing required fundamental fields' }, { status: 400 });
@@ -19,13 +19,16 @@ export async function POST(request: Request) {
 
         const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-        // 1. Update Profile Information
-        const { error: profileError } = await supabaseAdmin.from('profiles').update({
+        // 1. Update Profile Information (Only include provided fields)
+        const profileUpdate: any = {
             full_name,
-            professional_name,
-            phone_number,
             username
-        }).eq('id', id);
+        };
+        if (professional_name !== undefined) profileUpdate.professional_name = professional_name;
+        if (sync_enabled !== undefined) profileUpdate.sync_enabled = sync_enabled;
+        if (phone_number !== undefined) profileUpdate.phone_number = phone_number;
+
+        const { error: profileError } = await supabaseAdmin.from('profiles').update(profileUpdate).eq('id', id);
 
         if (profileError) {
             return NextResponse.json({ error: profileError.message }, { status: 400 });

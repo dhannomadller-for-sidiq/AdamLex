@@ -92,7 +92,7 @@ export default function WorkspacePage() {
     const fetchAdvocates = async () => {
         const { data } = await supabase
             .from('profiles')
-            .select('id, full_name, professional_name, role')
+            .select('id, full_name, professional_name, role, sync_enabled')
             .in('role', ['lawyer', 'associate'])
             .order('full_name');
         setAllAdvocates(data || []);
@@ -251,9 +251,9 @@ export default function WorkspacePage() {
                                     if (nameLiteral) {
                                         namesToSync = [nameLiteral];
                                     } else {
-                                        // Default: only sync those with a professional name
+                                        // Default: only sync those with a professional name AND sync_enabled is TRUE
                                         namesToSync = allAdvocates
-                                            .filter(a => a.professional_name)
+                                            .filter(a => a.professional_name && a.sync_enabled !== false)
                                             .map(a => a.professional_name);
                                     }
 
@@ -631,12 +631,37 @@ export default function WorkspacePage() {
                                 <div className="space-y-4">
                                     {allAdvocates.map((adv) => (
                                         <div key={adv.id} className="p-4 rounded-xl bg-[rgba(255,255,255,0.02)] border border-[var(--border-color)] flex items-center justify-between gap-4">
+                                            <div className="flex items-center gap-3 shrink-0">
+                                                <input
+                                                    type="checkbox"
+                                                    defaultChecked={adv.sync_enabled !== false}
+                                                    onChange={async (e) => {
+                                                        const isEnabled = e.target.checked;
+                                                        const endpoint = adv.role === 'lawyer' ? '/api/admin/edit-lawyer' : '/api/admin/edit-associate';
+                                                        try {
+                                                            await fetch(endpoint, {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ id: adv.id, sync_enabled: isEnabled })
+                                                            });
+                                                            fetchAdvocates();
+                                                        } catch (err) {
+                                                            console.error('Failed to update sync enabled:', err);
+                                                        }
+                                                    }}
+                                                    className="w-4 h-4 rounded border-[var(--border-color)] bg-[rgba(255,255,255,0.05)] text-[var(--accent-gold)] focus:ring-[var(--accent-gold)] accent-[var(--accent-gold)] cursor-pointer"
+                                                />
+                                            </div>
                                             <div className="flex-1">
                                                 <div className="flex items-center gap-2">
                                                     <p className="font-semibold text-sm text-[var(--text-primary)]">{adv.full_name}</p>
                                                     <span className="text-[8px] uppercase px-1.5 py-0.5 rounded bg-[rgba(139,92,246,0.1)] text-[#a78bfa] border border-[rgba(139,92,246,0.2)]">{adv.role}</span>
                                                 </div>
-                                                <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{adv.professional_name ? "✓ Sync Enabled" : "✗ Sync Disabled"}</p>
+                                                <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+                                                    {adv.professional_name ? "✓ Bar Name Set" : "✗ No Bar Name"}
+                                                    <span className="mx-2 opacity-30">|</span>
+                                                    {adv.sync_enabled !== false ? "Sync Active" : "Sync Paused"}
+                                                </p>
                                             </div>
                                             <div className="w-56">
                                                 <input

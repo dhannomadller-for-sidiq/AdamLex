@@ -45,7 +45,8 @@ export async function POST(request: Request) {
             full_name,
             professional_name,
             phone_number,
-            username
+            username,
+            sync_enabled: true
         }]);
 
         if (profileError) {
