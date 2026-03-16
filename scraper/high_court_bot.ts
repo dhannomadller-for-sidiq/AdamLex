@@ -1,15 +1,16 @@
-import { chromium, Page } from 'playwright';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 import { createClient } from '@supabase/supabase-js';
 
 // Configuration
 const CONFIG = {
-    searchUrl: 'https://hckinfo.keralacourts.in/digicourt/Casedetailssearch/Advocatesearch',
+    searchUrl: 'https://hckinfo.keralacourts.in/digicourt/index.php/Casedetailssearch/Casebyadv1',
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
     supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
 };
 
 async function syncAdvocateCases() {
-    console.log('🚀 Starting High Court Advocate Case Sync...');
+    console.log('🚀 Starting High Court Advocate Case Sync (HTTP Mode)...');
 
     if (!CONFIG.supabaseUrl || !CONFIG.supabaseKey) {
         console.error('❌ Supabase credentials missing.');
@@ -17,9 +18,6 @@ async function syncAdvocateCases() {
     }
 
     const supabase = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
-    const browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext();
-    const page = await context.newPage();
 
     try {
         // 1. Fetch advocate names from profiles
@@ -33,61 +31,60 @@ async function syncAdvocateCases() {
         const advocateNames = [...new Set(profiles?.map(p => p.full_name).filter(Boolean))];
         console.log(`🔍 Found ${advocateNames.length} unique advocates to sync.`);
 
-        // Today's date in dd/mm/yyyy format
+        // Today's date in yyyy-mm-dd format for the API
         const today = new Date();
-        const dateStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         console.log(`📅 Syncing for date: ${dateStr}`);
 
         for (const name of advocateNames) {
             console.log(`🔎 Searching for: ${name}`);
-            await scrapeForAdvocate(page, name, dateStr, supabase);
+            await scrapeForAdvocate(name, dateStr, supabase);
         }
 
     } catch (error) {
         console.error('❌ Sync error:', error);
     } finally {
-        await browser.close();
         console.log('🏁 Sync finished.');
     }
 }
 
-async function scrapeForAdvocate(page: Page, name: string, date: string, supabase: any) {
+async function scrapeForAdvocate(name: string, date: string, supabase: any) {
     try {
-        await page.goto(CONFIG.searchUrl, { waitUntil: 'networkidle' });
+        // Advocate name must be Base64 encoded for this specific API
+        // Raw -> URL Encoded -> Base64
+        const encodedName = Buffer.from(encodeURIComponent(name)).toString('base64');
 
-        // Enter Date
-        await page.click('input[placeholder*="Date"]'); // Adjust based on exact selector
-        await page.keyboard.press('Control+A');
-        await page.keyboard.press('Backspace');
-        await page.keyboard.type(date);
+        const payload = new URLSearchParams();
+        payload.append('advocate_name', encodedName);
+        payload.append('from_date', date);
+        payload.append('adv_cd', '');
 
-        // Enter Name and select from autocomplete if necessary
-        await page.fill('input[placeholder*="Advocate"]', name);
-        await page.waitForTimeout(1000); // Wait for autocomplete
+        const response = await axios.post(CONFIG.searchUrl, payload, {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Referer': 'https://hckinfo.keralacourts.in/digicourt/Casedetailssearch/Advocatesearch',
+                'Origin': 'https://hckinfo.keralacourts.in',
+            }
+        });
 
-        // Try to click the exact match in autocomplete if it appears
-        const suggestion = page.locator(`.autocomplete-suggestions:has-text("${name}")`);
-        if (await suggestion.isVisible()) {
-            await suggestion.click();
-        }
+        const html = response.data;
+        const $ = cheerio.load(html);
+        const cases: any[] = [];
 
-        await page.click('button:has-text("Search")');
-        await page.waitForLoadState('networkidle');
-
-        // Extract Data
-        const cases = await page.evaluate(() => {
-            const rows = Array.from(document.querySelectorAll('table.table tbody tr'));
-            return rows.map(row => {
-                const cells = row.querySelectorAll('td');
-                return {
-                    itemNo: cells[0]?.innerText.trim(),
-                    courtHall: cells[1]?.innerText.trim(),
-                    bench: cells[2]?.innerText.trim(),
-                    listType: cells[3]?.innerText.trim(),
-                    caseNumber: cells[4]?.innerText.trim(),
-                    parties: cells[5]?.innerText.trim(),
-                };
-            }).filter(c => c.caseNumber);
+        $('table.table tbody tr').each((_, row) => {
+            const cells = $(row).find('td');
+            const caseNumber = cells.eq(4).text().trim();
+            if (caseNumber) {
+                cases.push({
+                    itemNo: cells.eq(0).text().trim(),
+                    courtHall: cells.eq(1).text().trim(),
+                    bench: cells.eq(2).text().trim(),
+                    listType: cells.eq(3).text().trim(),
+                    caseNumber: caseNumber,
+                    parties: cells.eq(5).text().trim(),
+                });
+            }
         });
 
         console.log(`✅ Found ${cases.length} cases for ${name}.`);
@@ -98,7 +95,8 @@ async function scrapeForAdvocate(page: Page, name: string, date: string, supabas
                 .from('court_cases')
                 .upsert({
                     case_number: c.caseNumber,
-                    parties: c.parties,
+                    petitioner: c.parties.split('Vs')[0]?.trim(),
+                    respondent: c.parties.split('Vs')[1]?.trim(),
                     bench: c.bench,
                     court_hall: c.courtHall,
                     last_synced_at: new Date().toISOString(),
