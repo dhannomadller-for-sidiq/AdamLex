@@ -15,7 +15,10 @@ export async function GET(request: Request) {
         // Note: In a production environment with serverless functions,
         // you might want to run this as a background job or use an edge function
         // if the execution time exceeds limits.
-        await syncAdvocateCases();
+        // Default cron behavior: sync for tomorrow's hearings
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        await syncAdvocateCases(undefined, tomorrow);
 
         return NextResponse.json({ success: true, message: 'Sync started' });
     } catch (error: any) {

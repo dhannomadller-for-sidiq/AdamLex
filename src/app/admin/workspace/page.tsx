@@ -266,8 +266,12 @@ export default function WorkspacePage() {
                                     let totalCases = 0;
                                     let totalHearings = 0;
 
+                                    const tomorrow = new Date();
+                                    tomorrow.setDate(tomorrow.getDate() + 1);
+                                    const syncDate = isTomorrowView ? tomorrow.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+
                                     for (const name of namesToSync) {
-                                        const res = await fetch(`/api/admin/sync-court-cases?name=${encodeURIComponent(name)}`, { method: 'POST' });
+                                        const res = await fetch(`/api/admin/sync-court-cases?name=${encodeURIComponent(name)}&date=${syncDate}`, { method: 'POST' });
                                         if (res.ok) {
                                             const data = await res.json();
                                             totalCases += data.summary?.cases || 0;

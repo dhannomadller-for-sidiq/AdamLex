@@ -9,8 +9,8 @@ const CONFIG = {
     supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
 };
 
-async function syncAdvocateCases(targetName?: string) {
-    console.log('🚀 Starting High Court Advocate Case Sync (HTTP Mode)...');
+async function syncAdvocateCases(targetName?: string, targetDate: Date = new Date()) {
+    console.log(`🚀 Syncing for date: ${targetDate.toDateString()}`);
     const summary = { advocates: 0, cases: 0, hearings: 0 };
 
     if (!CONFIG.supabaseUrl || !CONFIG.supabaseKey) {
@@ -53,8 +53,6 @@ async function syncAdvocateCases(targetName?: string) {
         console.log(`🔍 Found ${syncTargets.length} opt-in advocates to sync.`);
         summary.advocates = syncTargets.length;
 
-        const targetDate = new Date();
-        targetDate.setDate(targetDate.getDate() + 1);
         const dateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
         console.log(`📅 Syncing for target date: ${dateStr}`);
 
