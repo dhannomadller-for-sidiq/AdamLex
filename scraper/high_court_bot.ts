@@ -131,55 +131,58 @@ async function scrapeForAdvocate(name: string, date: string, supabase: any) {
         });
 
         console.log(`✅ Scraped ${cases.length} cases for ${name}.`);
-        let syncedCases = 0;
-        let syncedHearings = 0;
+        if (cases.length === 0) return { cases: 0, hearings: 0 };
 
-        // Sync to Supabase
+        // 1. Bulk Upsert Cases
+        const caseUpserts = cases.map(c => ({
+            case_number: c.caseNumber,
+            petitioner: c.petitioner,
+            respondent: c.respondent,
+            bench: c.bench,
+            court_hall: c.courtHall,
+            item_no: c.itemNo,
+            list_type: c.listType,
+            lead_id: c.lead_id,
+            last_synced_at: new Date().toISOString(),
+        }));
+
+        const { data: savedCases, error: caseError } = await supabase
+            .from('court_cases')
+            .upsert(caseUpserts, { onConflict: 'case_number' })
+            .select('id, case_number');
+
+        if (caseError) {
+            console.error('❌ Bulk Case Upsert Error:', caseError);
+            return { cases: 0, hearings: 0 };
+        }
+
+        // 2. Bulk Upsert Hearings (only for those with lead_id)
+        const hearingsToUpsert = [];
         for (const c of cases) {
-            // Upsert the Case
-            const { data: savedCase, error: syncError } = await supabase
-                .from('court_cases')
-                .upsert({
-                    case_number: c.caseNumber,
-                    petitioner: c.petitioner,
-                    respondent: c.respondent,
-                    bench: c.bench,
-                    court_hall: c.courtHall,
-                    item_no: c.itemNo,
-                    list_type: c.listType,
-                    lead_id: c.lead_id,
-                    last_synced_at: new Date().toISOString(),
-                }, { onConflict: 'case_number' })
-                .select()
-                .single();
-
-            if (syncError) {
-                console.error(`❌ Error syncing case ${c.caseNumber}:`, syncError);
-                continue;
-            }
-            syncedCases++;
-
-            // If we have a lead_id, also create/update a hearing record for the target date
-            if (c.lead_id && savedCase) {
-                const { error: hearError } = await supabase
-                    .from('court_hearings')
-                    .upsert({
+            if (c.lead_id) {
+                const savedCase = savedCases?.find((sc: any) => sc.case_number === c.caseNumber);
+                if (savedCase) {
+                    hearingsToUpsert.push({
                         lead_id: c.lead_id,
                         court_case_id: savedCase.id,
-                        hearing_date: date, // The date we searched for
-                        next_hearing_date: date, // For the "Next Hearings" filter
+                        hearing_date: date,
+                        next_hearing_date: date,
                         what_happened: `Automated Sync: ${c.listType || 'Court Listing'}`,
-                        recorded_by: profileIds[0] // Use the first matching profile as recorder
-                    }, { onConflict: 'lead_id,hearing_date' });
-
-                if (hearError) {
-                    console.error(`❌ Error syncing hearing for ${c.caseNumber}:`, hearError);
-                } else {
-                    syncedHearings++;
+                        recorded_by: profileIds[0]
+                    });
                 }
             }
         }
-        return { cases: syncedCases, hearings: syncedHearings };
+
+        if (hearingsToUpsert.length > 0) {
+            const { error: hearError } = await supabase
+                .from('court_hearings')
+                .upsert(hearingsToUpsert, { onConflict: 'lead_id,hearing_date' });
+
+            if (hearError) console.error('❌ Bulk Hearing Upsert Error:', hearError);
+        }
+
+        return { cases: cases.length, hearings: hearingsToUpsert.length };
 
     } catch (error) {
         console.error(`❌ Error scraping for ${name}:`, error);
