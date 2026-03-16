@@ -6,8 +6,8 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { id, password, full_name, professional_name, sync_enabled, phone_number, location, specialization, username } = body;
 
-        if (!id || !full_name) {
-            return NextResponse.json({ error: 'Missing required fundamental fields' }, { status: 400 });
+        if (!id) {
+            return NextResponse.json({ error: 'Missing required ID' }, { status: 400 });
         }
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -20,10 +20,9 @@ export async function POST(request: Request) {
         const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
         // 1. Update Profile Information (Only include provided fields)
-        const profileUpdate: any = {
-            full_name,
-            username
-        };
+        const profileUpdate: any = {};
+        if (full_name !== undefined) profileUpdate.full_name = full_name;
+        if (username !== undefined) profileUpdate.username = username;
         if (professional_name !== undefined) profileUpdate.professional_name = professional_name;
         if (sync_enabled !== undefined) profileUpdate.sync_enabled = sync_enabled;
         if (phone_number !== undefined) profileUpdate.phone_number = phone_number;
